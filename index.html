@@ -61,6 +61,9 @@
 
       <!-- 우측 저장함 필터 버튼 -->
       <div class="flex items-center space-x-2">
+        <span id="live-sync-status" class="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/80">
+          기본 데이터
+        </span>
         <button
           type="button"
           id="btn-toggle-bookmarks"
@@ -138,20 +141,20 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="px-2.5 py-0.5 text-xs font-black bg-rose-600 text-white rounded-md animate-pulse">
-                부산 재난 · 특보 현황 (11.10 ~ 11.12)
+              <span id="banner-badge-label" class="px-2.5 py-0.5 text-xs font-black bg-rose-600 text-white rounded-md animate-pulse">
+                부산 재난 · 특보 현황
               </span>
               <span class="text-xs font-bold text-rose-200">
                 기상청 · 부산 안전 ON 기준
               </span>
             </div>
-            <h2 class="text-base sm:text-lg font-extrabold text-white leading-snug">
+            <h2 id="banner-headline-text" class="text-base sm:text-lg font-extrabold text-white leading-snug">
               남해동부바깥먼바다 풍랑주의보 발효 중 · 육상(호우·강풍 등) 특보 없음
             </h2>
           </div>
           <div class="flex items-center space-x-2 text-xs font-bold bg-slate-950/70 px-3.5 py-2.5 rounded-xl border border-rose-500/30 text-rose-200 shrink-0">
             <i data-lucide="bell" class="w-4 h-4 text-rose-400 shrink-0"></i>
-            <span>해안가 너울 및 야간 도로 통제 유의</span>
+            <span id="banner-subtext-label">해안가 너울 및 야간 도로 통제 유의</span>
           </div>
         </div>
       </div>
@@ -191,7 +194,7 @@
           </div>
           <div>
             <h3 class="text-base font-extrabold text-white">
-              최근 3일 날짜별 통합 브리핑 (11.10 ~ 11.12)
+              최근 3일 날짜별 통합 브리핑
             </h3>
             <p class="text-xs text-slate-400">
               최근 3일간 발생한 부산 재해·재난 및 사건·사고 소식을 일자별로 요약했습니다.
@@ -240,8 +243,8 @@
   </div>
 
   <script>
-    // --- 최근 3일(2026.11.10 ~ 2026.11.12) 부산 지역 재해·재난 특보 및 안전 통제 데이터 ---
-    const DISASTER_ARTICLES = [
+    // --- 기본 내장 데이터 (로컬 단독 실행 또는 API 응답 대기 시 표시) ---
+    let DISASTER_ARTICLES = [
       {
         id: 'dis-1',
         type: 'disaster',
@@ -309,7 +312,7 @@
     ];
 
     // --- 최근 3일(2026.11.10 ~ 2026.11.12) 부산 지역 사건·사고 기사 데이터 ---
-    const INCIDENT_ARTICLES = [
+    let INCIDENT_ARTICLES = [
       {
         id: 'inc-1',
         type: 'incident',
@@ -372,7 +375,7 @@
       }
     ];
 
-    const RECENT_THREE_DAYS = [
+    let RECENT_THREE_DAYS = [
       { date: '2026-11-12', label: '11월 12일 (목 · 오늘)' },
       { date: '2026-11-11', label: '11월 11일 (수 · 어제)' },
       { date: '2026-11-10', label: '11월 10일 (화 · 그제)' }
@@ -722,15 +725,16 @@
       document.getElementById('article-modal').classList.add('hidden');
     }
 
-    // 30초 단신 기사작성 모달 열기
+    // 30초 단신 기사 작성 모달 열기
     function openDraftModal(id) {
       const article = findArticleById(id);
       if (!article) return;
       state.draftArticleTarget = article;
+      const draftData = generateShortNewsDraft(article);
+      if (!draftData) return;
 
       const modal = document.getElementById('draft-modal');
       const box = document.getElementById('draft-modal-box');
-      const draftData = generateShortNewsDraft(article);
 
       box.innerHTML = `
         <div class="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between sticky top-0 z-10">
@@ -743,7 +747,7 @@
                 30초 단신 기사 자동 작성 & 후속 아이템
               </h3>
               <p class="text-[11px] text-slate-400">
-                기반 출처: ${escapeHtml(article.source)} · ${escapeHtml(article.district)}
+                기반 자료: ${escapeHtml(article.source)} · ${escapeHtml(article.district)}
               </p>
             </div>
           </div>
@@ -860,23 +864,21 @@
 
       const textarea = document.createElement('textarea');
       textarea.value = fullText;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
       document.body.appendChild(textarea);
       textarea.select();
       try {
         document.execCommand('copy');
-        showToast('30초 단신 원고와 연계기사 아이템이 복사되었습니다.');
+        showToast('단신 원고와 연계기사 아이템이 복사되었습니다.');
       } catch (err) {
-        showToast('복사에 실패했습니다. 직접 선택하여 복사해주세요.');
+        showToast('복사 중 오류가 발생했습니다.');
       }
       document.body.removeChild(textarea);
     }
 
     // MS Word(.doc) 파일 다운로드
     function downloadDraftWord() {
+      if (!state.draftArticleTarget) return;
       const article = state.draftArticleTarget;
-      if (!article) return;
       const draftData = generateShortNewsDraft(article);
 
       const followUpHtml = draftData.followUpItems
@@ -1225,22 +1227,22 @@
       );
 
       timelineGrid.innerHTML = filteredDays
-        .map((day) => {
-          const items = allItems.filter((i) => i.date === day.date);
+        .map((dayGroup) => {
+          const dayItems = allItems.filter((item) => item.date === dayGroup.date);
           return `
             <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
               <div>
                 <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-800">
                   <span class="text-sm font-extrabold text-amber-300">
-                    ${escapeHtml(day.label)}
+                    ${escapeHtml(dayGroup.label)}
                   </span>
                   <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-slate-800 text-slate-300">
-                    ${items.length}건
+                    ${dayItems.length}건
                   </span>
                 </div>
 
                 <ul class="space-y-2.5">
-                  ${items
+                  ${dayItems
                     .map(
                       (item) => `
                       <li
@@ -1248,7 +1250,7 @@
                         class="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800/90 cursor-pointer transition group"
                       >
                         <div class="flex items-center gap-1.5 mb-1">
-                          <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                          <span class="px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
                             item.type === 'disaster'
                               ? 'bg-rose-600/90 text-white'
                               : 'bg-indigo-600/90 text-white'
@@ -1281,6 +1283,66 @@
     function setTimelineDate(dateStr) {
       state.selectedTimelineDate = dateStr;
       renderAll();
+    }
+
+    // Vercel 백엔드(/api/news)에서 실시간 제미나이 검색 데이터 불러오기
+    async function loadLiveNewsFromVercel() {
+      const statusEl = document.getElementById('live-sync-status');
+      if (window.location.protocol === 'file:') {
+        return; // 로컬 파일(file://) 단독 실행 시에는 기본 데이터 유지
+      }
+
+      try {
+        if (statusEl) {
+          statusEl.textContent = '실시간 수집 중...';
+          statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-600/50 animate-pulse';
+        }
+
+        const response = await fetch('/api/news');
+        if (!response.ok) throw new Error('API 응답 없음');
+        const liveData = await response.json();
+
+        if (Array.isArray(liveData.disasters) && liveData.disasters.length > 0) {
+          DISASTER_ARTICLES = liveData.disasters.map((d, idx) => ({
+            ...d,
+            id: d.id || `dis-live-${idx + 1}`,
+            type: 'disaster'
+          }));
+          document.getElementById('disaster-tab-badge').textContent = DISASTER_ARTICLES.length;
+        }
+
+        if (Array.isArray(liveData.incidents) && liveData.incidents.length > 0) {
+          INCIDENT_ARTICLES = liveData.incidents.map((inc, idx) => ({
+            ...inc,
+            id: inc.id || `inc-live-${idx + 1}`,
+            type: 'incident'
+          }));
+          document.getElementById('incident-tab-badge').textContent = INCIDENT_ARTICLES.length;
+        }
+
+        if (Array.isArray(liveData.recentDays) && liveData.recentDays.length > 0) {
+          RECENT_THREE_DAYS = liveData.recentDays;
+        }
+
+        if (liveData.bannerHeadline) {
+          document.getElementById('banner-headline-text').textContent = liveData.bannerHeadline;
+        }
+        if (liveData.bannerSubtext) {
+          document.getElementById('banner-subtext-label').textContent = liveData.bannerSubtext;
+        }
+
+        if (statusEl) {
+          statusEl.textContent = '실시간 연동됨';
+          statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-950/90 text-emerald-300 border border-emerald-600/50';
+        }
+
+        renderAll();
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = '기본 브리핑 모드';
+          statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/80';
+        }
+      }
     }
 
     // 초기화 및 이벤트 바인딩
@@ -1357,6 +1419,7 @@
       });
 
       renderAll();
+      loadLiveNewsFromVercel();
     });
   </script>
 </body>
