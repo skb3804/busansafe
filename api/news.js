@@ -64,47 +64,62 @@ module.exports = async function handler(req, res) {
 }
 `;
 
+  // Gemini 2.x 대 모델 목록을 순서대로 시도 (하나가 404/429이면 다음 모델로 자동 전환)
+  const candidateModels = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash'
+  ];
+
+  let lastErrorDetail = null;
+  let lastStatus = 500;
+
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+    for (const modelName of candidateModels) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }]
-      })
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          tools: [{ google_search: {} }]
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        lastStatus = response.status;
+        lastErrorDetail = data;
+        // 404(모델 종료) 또는 429(할당량 초과) 시 다음 2.x 모델 시도
+        continue;
+      }
+
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      const rawText = parts.map((p) => p.text || '').join('\n').trim();
+
+      const jsonStart = rawText.indexOf('{');
+      const jsonEnd = rawText.lastIndexOf('}');
+      if (jsonStart === -1 || jsonEnd === -1) {
+        lastErrorDetail = { message: 'JSON 파싱 실패', rawText };
+        continue;
+      }
+
+      const cleanedJson = rawText.slice(jsonStart, jsonEnd + 1);
+      const parsed = JSON.parse(cleanedJson);
+      parsed.usedModel = modelName;
+
+      // 30분 캐시 적용으로 할당량 절약
+      res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate');
+      return res.status(200).json(parsed);
+    }
+
+    return res.status(lastStatus).json({
+      error: 'Gemini 2.x 모델 호출이 모두 실패했습니다.',
+      status: lastStatus,
+      detail: lastErrorDetail
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return res.status(500).json({
-        error: 'Gemini API 호출 거부됨',
-        status: response.status,
-        detail: data
-      });
-    }
-
-    // 텍스트 파트 추출
-    const parts = data?.candidates?.[0]?.content?.parts || [];
-    const rawText = parts.map((p) => p.text || '').join('\n').trim();
-
-    // JSON 영역({ ... })만 안전하게 추출
-    const jsonStart = rawText.indexOf('{');
-    const jsonEnd = rawText.lastIndexOf('}');
-    if (jsonStart === -1 || jsonEnd === -1) {
-      return res.status(500).json({
-        error: 'JSON 형식을 찾지 못했습니다.',
-        rawText
-      });
-    }
-
-    const cleanedJson = rawText.slice(jsonStart, jsonEnd + 1);
-    const parsed = JSON.parse(cleanedJson);
-
-    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate');
-    return res.status(200).json(parsed);
   } catch (error) {
     return res.status(500).json({
       error: '서버 실행 오류',
