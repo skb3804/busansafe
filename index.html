@@ -85,7 +85,7 @@
         <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
         <span>재해 · 재난 현황</span>
         <span id="disaster-tab-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-rose-600 text-white font-extrabold">
-          4
+          2
         </span>
       </button>
 
@@ -163,7 +163,7 @@
       <div class="flex items-center justify-between">
         <h3 class="text-base font-bold text-slate-200 flex items-center space-x-2">
           <i data-lucide="cloud-rain" class="w-5 h-5 text-rose-400"></i>
-          <span>실시간 재해 · 재난 특보 및 기사 (<span id="disaster-count">4</span>건)</span>
+          <span>실시간 재해 · 재난 특보 및 기사 (<span id="disaster-count">2</span>건)</span>
         </h3>
         <span class="text-xs text-slate-400 hidden sm:inline">카드를 누르면 상세 행동요령을 확인합니다</span>
       </div>
@@ -243,7 +243,7 @@
   </div>
 
   <script>
-    // --- 기본 내장 데이터 (로컬 단독 실행 또는 API 응답 대기 시 표시) ---
+    // --- 기본 내장 데이터 (실제 재해·재난 특보 및 도로·재난 통제 보도만 엄선, 억지로 개수를 채우지 않음) ---
     let DISASTER_ARTICLES = [
       {
         id: 'dis-1',
@@ -262,28 +262,12 @@
         content: '부산지방기상청과 부산광역시 재난안전대책본부는 11월 10일 발효된 남해동부바깥먼바다 풍랑주의보가 이어지고 있다고 밝혔습니다. 부산 육상 구역은 현재 호우·강풍 등 별도 특보가 없는 안정 상태이나, 먼바다 물결이 높게 일고 있어 항해 및 조업 선박의 각별한 주의가 필요합니다.'
       },
       {
-        id: 'dis-2',
-        type: 'disaster',
-        date: '2026-11-11',
-        dateLabel: '11월 11일 (어제)',
-        severity: '안내',
-        category: '안전점검/단속',
-        district: '부산 전역 · 주요 고속도로',
-        title: '부산 시내 다중이용시설 화재안전조사 공개 및 고속도로 화물차 집중단속 돌입',
-        summary: '부산시가 11월 화재안전조사 대상을 사전 공개한 데 이어, 경찰청이 11일부터 한 달간 경부·남해선 등 주요 고속도로 화물차 과속 및 법규위반 집중단속에 들어갔습니다.',
-        source: '부산광역시 · 부산경찰청',
-        sourceUrl: 'https://www.busan.go.kr/safety/index',
-        publishedAt: '11월 11일 14:00',
-        actionGuide: '겨울철 난방기구 사용 증가에 대비해 다중이용시설 비상구 및 소방시설 작동 상태를 점검하고, 고속도로 주행 시 안전거리를 확보하세요.',
-        content: '부산광역시는 대형 화재 예방을 위해 피난·방화시설 유지관리 및 소방시설 폐쇄 여부를 점검하는 11월 화재안전조사 대상을 사전 공개했습니다. 아울러 경찰은 최근 고속도로 사고 증가에 따라 11월 11일부터 12월 10일까지 화물차 지정차로 위반 및 과속 집중단속을 실시합니다.'
-      },
-      {
         id: 'dis-3',
         type: 'disaster',
         date: '2026-11-10',
         dateLabel: '11월 10일 (그제)',
         severity: '경계',
-        category: '도로통제/공사',
+        category: '도로통제/돌발',
         district: '사상구 · 부산진구 · 기장군',
         title: '동서고가로·황령대로 야간 차로 통제 및 부산외곽순환선 철마1터널 장애물 주의',
         summary: '10일 저녁 동서고가로(낙동램프~서부산낙동강교) 및 남해2지선(가야대로~낙동대교) 야간 도로 작업과 부산외곽순환고속도로 철마1터널 일대 장애물로 부분 차로 통제가 시행됐습니다.',
@@ -292,22 +276,6 @@
         publishedAt: '11월 10일 21:19',
         actionGuide: '야간 및 출퇴근 시간대 동서고가로와 황령터널 방면 진입 차량은 차로 축소 구간에서 감속 운행하시기 바랍니다.',
         content: '부산 안전 ON 교통돌발 정보에 따르면 11월 10일 오후부터 야간 사이 황령대로 문전교차로~황령터널 구간 1차로 통제, 동서고가로 시외곽 방향 1차로 작업 통제, 부산외곽순환선 철마1터널 기점 방향 2차로 장애물 처리 등 주요 간선도로 통제가 잇따랐습니다.'
-      },
-      {
-        id: 'dis-4',
-        type: 'disaster',
-        date: '2026-11-12',
-        dateLabel: '11월 12일 (오늘)',
-        severity: '주의',
-        category: '산불/건조예방',
-        district: '금정구 · 해운대구 · 기장군',
-        title: '부산 주요 산림 일대 가을철 산불조심기간 비상근무 가동… 입산객 화기 소지 금지',
-        summary: '부산시와 16개 구·군이 가을철 산불조심기간을 맞아 금정산·장산·백양산 등 주요 등산로 입구 감시초소를 확대 운영하고 산림 인접지 소각 행위 집중 단속에 나섰습니다.',
-        source: '부산광역시 산불방지대책본부',
-        sourceUrl: 'https://www.busan.go.kr/safety/index',
-        publishedAt: '11월 12일 08:30',
-        actionGuide: '입산 시 라이터·버너 등 인화물질 소지를 삼가고, 산림 인접 지역에서 논·밭두렁 및 쓰레기 불법 소각을 절대 하지 마시기 바랍니다.',
-        content: '부산광역시 산불방지대책본부는 맑고 일교차가 큰 가을 날씨가 이어짐에 따라 주요 산림 및 등산로에 산불감시원을 집중 배치했습니다. 입산통제구역 출입 및 산림 내 흡연·취사 행위 적발 시 관련 법령에 따라 엄중 과태료가 부과됩니다.'
       }
     ];
 
@@ -1000,13 +968,23 @@
       // 3. 재해·재난 카드 렌더링
       const filteredDisasters = filterArticles(DISASTER_ARTICLES);
       document.getElementById('disaster-count').textContent = filteredDisasters.length;
+      document.getElementById('disaster-tab-badge').textContent = DISASTER_ARTICLES.length;
       const disContainer = document.getElementById('disaster-list');
 
       if (filteredDisasters.length === 0) {
         disContainer.className = 'block';
+        const isFiltered =
+          state.selectedDistrict !== '전체 구·군' ||
+          state.searchQuery.trim() !== '' ||
+          state.showBookmarksOnly;
         disContainer.innerHTML = `
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center text-slate-400 text-sm">
-            선택한 조건에 해당하는 재해·재난 기사가 없습니다.
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-1.5">
+            <p class="text-slate-200 font-bold text-sm">
+              ${isFiltered ? '선택한 검색 조건에 해당하는 재해·재난 기사가 없습니다.' : '현재 부산 지역에 발효된 긴급 재해·재난 보도가 없습니다.'}
+            </p>
+            <p class="text-slate-400 text-xs">
+              ${isFiltered ? '필터 조건을 초기화하거나 다른 지역을 선택해 보세요.' : '기상특보나 재난·안전 통제 소식이 접수되면 즉시 표출됩니다.'}
+            </p>
           </div>
         `;
       } else {
@@ -1108,6 +1086,7 @@
       // 4. 사건·사고 리스트 렌더링
       const filteredIncidents = filterArticles(INCIDENT_ARTICLES);
       document.getElementById('incident-count').textContent = filteredIncidents.length;
+      document.getElementById('incident-tab-badge').textContent = INCIDENT_ARTICLES.length;
       const incContainer = document.getElementById('incident-list');
 
       if (filteredIncidents.length === 0) {
@@ -1294,12 +1273,6 @@
     // Vercel 백엔드(/api/news)에서 실시간 제미나이 검색 데이터 불러오기
     async function loadLiveNewsFromVercel(isManualRefresh = false) {
       const statusEl = document.getElementById('live-sync-status');
-      if (window.location.protocol === 'file:') {
-        if (isManualRefresh) {
-          showToast('초기 화면으로 복귀했습니다. (로컬 파일 모드)');
-        }
-        return; // 로컬 파일(file://) 단독 실행 시에는 기본 데이터 유지
-      }
 
       // 연속 클릭 시 429 할당량 초과 방지를 위한 15초 쿨다운 보호
       if (isManualRefresh) {
@@ -1322,8 +1295,12 @@
           showToast('최신 기사를 불러오고 있습니다...');
         }
 
-        // 캐시 우회를 위해 수동 클릭 시 타임스탬프 쿼리 및 no-store 옵션 적용
-        const apiUrl = isManualRefresh ? `/api/news?t=${Date.now()}` : '/api/news';
+        // 로컬 PC(file://)에서 실행할 때도 배포된 Vercel 백엔드(https://busansafe.vercel.app)를 직접 호출
+        const baseApiUrl =
+          window.location.protocol === 'file:'
+            ? 'https://busansafe.vercel.app/api/news'
+            : '/api/news';
+        const apiUrl = isManualRefresh ? `${baseApiUrl}?t=${Date.now()}` : baseApiUrl;
         const response = await fetch(apiUrl, isManualRefresh ? { cache: 'no-store' } : {});
         const liveData = await response.json().catch(() => ({}));
 
@@ -1336,16 +1313,24 @@
           throw new Error(errReason);
         }
 
-        if (Array.isArray(liveData.disasters) && liveData.disasters.length > 0) {
-          DISASTER_ARTICLES = liveData.disasters.map((d, idx) => ({
-            ...d,
-            id: d.id || `dis-live-${idx + 1}`,
-            type: 'disaster'
-          }));
+        // 재해·재난 관련 키워드 검증 (단순 행정·홍보성 기사가 섞여 들어오는 현상 방지)
+        const disasterKeywordRegex = /(태풍|호우|폭우|강풍|풍랑|대설|한파|폭염|건조|황사|지진|해일|너울|산사태|침수|범람|홍수|산불|화재|폭발|붕괴|누출|특보|주의보|경보|재난|재해|대피|통제|결항|단수|정전|낙석|싱크홀)/;
+
+        if (Array.isArray(liveData.disasters)) {
+          DISASTER_ARTICLES = liveData.disasters
+            .filter((d) => {
+              const combinedText = `${d.category || ''} ${d.title || ''} ${d.summary || ''}`;
+              return disasterKeywordRegex.test(combinedText);
+            })
+            .map((d, idx) => ({
+              ...d,
+              id: d.id || `dis-live-${idx + 1}`,
+              type: 'disaster'
+            }));
           document.getElementById('disaster-tab-badge').textContent = DISASTER_ARTICLES.length;
         }
 
-        if (Array.isArray(liveData.incidents) && liveData.incidents.length > 0) {
+        if (Array.isArray(liveData.incidents)) {
           INCIDENT_ARTICLES = liveData.incidents.map((inc, idx) => ({
             ...inc,
             id: inc.id || `inc-live-${idx + 1}`,
