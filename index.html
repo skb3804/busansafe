@@ -408,8 +408,7 @@
     function findArticleById(id) {
       return [...DISASTER_ARTICLES, ...INCIDENT_ARTICLES].find((a) => a.id === id) || null;
     }
-
-    // 날씨·기상특보 및 실제 재해·재난 보도 여부 정밀 판별 함수
+    // 날씨·기상특보 및 실제 재해·재난·사회재난 보도 여부 정밀 판별 함수
     function isStrictWeatherOrDisasterArticle(item) {
       if (!item) return false;
       const category = String(item.category || '');
@@ -418,15 +417,16 @@
       const titleAndCategory = `${category} ${title}`;
       const fullText = `${titleAndCategory} ${summary}`;
 
-      // 1. 시정·경제·산업·행사·홍보성 보도자료 즉시 제외
-      const nonDisasterRegex = /(혁신기업|제조업|스타트업|벤처|투자유치|수출|무역|일자리|채용|축제|박람회|전시회|관광|문화행사|공연|MOU|협약|지원사업|공모|분양|어워드|수상|포럼|세미나|개최|육성|산업단지 조성|예산안|시의회|국비 확보|캠페인|설명회|간담회|업무협약)/;
-      if (nonDisasterRegex.test(fullText)) {
+      // 1. 항공·기업·경제·산업·행사·홍보성 보도자료 즉시 제외 (단, 추락·불시착·화재 등 실제 사고 키워드 동반 시 예외 허용)
+      const hasAviationIncident = /(추락|불시착|동체착륙|기체결함|비상착륙|엔진화재|활주로 이탈|충돌)/.test(titleAndCategory);
+      const nonDisasterRegex = /(진에어|에어부산|대한항공|아시아나|제주항공|티웨이|이스타|항공편|취항|노선 확대|증편|특가|프로모션|할인|혁신기업|제조업|스타트업|벤처|투자유치|수출|무역|일자리|채용|축제|박람회|전시회|관광|문화행사|공연|MOU|협약|지원사업|공모|분양|어워드|수상|포럼|세미나|개최|육성|산업단지 조성|예산안|시의회|국비 확보|캠페인|설명회|간담회|업무협약|실적|영업이익|매출|주가|신제품|출시)/;
+      if (!hasAviationIncident && nonDisasterRegex.test(fullText)) {
         return false;
       }
 
-      // 2. 날씨·기상특보 및 재난·재해·긴급통제 핵심 키워드 검증 (제목 및 분류 중심)
-      const strictWeatherDisasterRegex = /(날씨|기상|예보|특보|주의보|경보|태풍|호우|폭우|강풍|풍랑|대설|폭설|한파|폭염|건조특보|건조주의보|건조경보|황사|미세먼지|지진|해일|너울|산사태|침수|범람|홍수|산불|화재|폭발|붕괴|누출|재난|재해|대피|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|낙석|싱크홀|땅꺼짐)/;
-      return strictWeatherDisasterRegex.test(titleAndCategory);
+      // 2. 날씨·기상특보·자연재난·사회재난 핵심 키워드 검증 (제목 중심 검사로 오탐 방지)
+      const strictTitleWeatherDisasterRegex = /(날씨|기상|예보|특보|주의보|경보|태풍|호우|폭우|강풍|풍랑|대설|폭설|한파|폭염|건조특보|건조주의보|건조경보|황사|미세먼지|지진|해일|너울|산사태|침수|범람|홍수|가뭄|산불|화재|폭발|붕괴|누출|유출|사회재난|자연재난|재난|재해|대피|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|낙석|싱크홀|땅꺼짐|감염병|전염병|방역)/;
+      return strictTitleWeatherDisasterRegex.test(title);
     }
 
     // 위험 등급별 스타일 반환
