@@ -656,18 +656,6 @@
             }
           </div>
 
-          ${
-            article.actionGuide
-              ? `<div class="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40">
-                  <div class="text-xs font-extrabold text-rose-300 mb-1 flex items-center space-x-1">
-                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-                    <span>재난 행동 요령</span>
-                  </div>
-                  <p class="text-sm text-rose-100 font-medium">${escapeHtml(article.actionGuide)}</p>
-                </div>`
-              : ''
-          }
-
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed">
             ${escapeHtml(article.content)}
           </p>
@@ -1100,19 +1088,9 @@
                     ${escapeHtml(item.title)}
                   </h4>
 
-                  <p class="text-sm text-slate-300 leading-relaxed line-clamp-2 mb-4">
+                  <p class="text-sm text-slate-300 leading-relaxed line-clamp-3 mb-4">
                     ${escapeHtml(item.summary)}
                   </p>
-
-                  <div class="bg-slate-950/90 border border-rose-500/30 rounded-xl p-3 mb-4">
-                    <div class="text-[11px] font-extrabold text-rose-400 mb-0.5 flex items-center space-x-1">
-                      <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
-                      <span>시민 행동요령</span>
-                    </div>
-                    <p class="text-xs text-slate-200 font-medium leading-relaxed">
-                      ${escapeHtml(item.actionGuide)}
-                    </p>
-                  </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs text-slate-400">
