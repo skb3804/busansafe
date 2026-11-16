@@ -484,6 +484,41 @@
       }, 2400);
     }
 
+    // --- 기사 요약/본문 표시용: 모든 기사에 똑같이 붙는 상투 문구는 걸러내고 실제 기사 내용을 우선 표시 ---
+    const GENERIC_TEXT_REGEX = /(보도된\s*재난[·ㆍ]?\s*안전\s*관련\s*주요\s*소식|안전\s*안내와\s*현장\s*상황을\s*확인하시기\s*바랍니다|관계\s*당국의\s*안전\s*안내)/;
+
+    function normalizeText(t) {
+      return String(t || '').replace(/\s+/g, ' ').trim();
+    }
+
+    // 상투 문구이거나, 여러 기사에 똑같이 반복되는 문구면 true
+    function isGenericText(text, item) {
+      const t = normalizeText(text);
+      if (!t) return true;
+      if (GENERIC_TEXT_REGEX.test(t)) return true;
+      const others = [...DISASTER_ARTICLES, ...INCIDENT_ARTICLES].filter((a) => a !== item && a.id !== (item && item.id));
+      return others.some((a) => normalizeText(a.summary) === t || normalizeText(a.content) === t);
+    }
+
+    // 카드·목록에 보일 요약: summary → content(앞부분) 순서로 실제 내용 선택
+    function getDisplaySummary(item) {
+      if (!item) return '';
+      if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
+      if (!isGenericText(item.content, item)) {
+        const c = normalizeText(item.content);
+        return c.length > 160 ? c.slice(0, 157) + '…' : c;
+      }
+      return '';
+    }
+
+    // 상세 모달에 보일 본문: content → summary 순서
+    function getDisplayContent(item) {
+      if (!item) return '';
+      if (!isGenericText(item.content, item)) return normalizeText(item.content);
+      if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
+      return '기사 상세 내용이 제공되지 않았습니다. 출처 링크에서 원문을 확인해 주세요.';
+    }
+
     // 기사 검색 유틸리티
     function findArticleById(id) {
       return [...DISASTER_ARTICLES, ...INCIDENT_ARTICLES].find((a) => a.id === id) || null;
@@ -574,7 +609,7 @@
           break;
         default: {
           const cleanTitle = (article.title || '').replace(/…/g, ', ').replace(/\(출처:[^)]+\)/g, '').trim();
-          const cleanSummary = (article.summary || '')
+          const cleanSummary = (getDisplaySummary(article) || '')
             .replace(/\(출처:[^)]+\)/g, '')
             .replace(/^[가-힣A-Za-z0-9·\s]+에\s*따르면\s*/g, '')
             .replace(/밝혔습니다\.?$/g, '전해졌습니다.')
@@ -745,7 +780,7 @@
           </div>
 
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed">
-            ${escapeHtml(article.content)}
+            ${escapeHtml(getDisplayContent(article))}
           </p>
 
           <div class="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80">
@@ -1248,7 +1283,7 @@
                   </h4>
 
                   <p class="text-sm text-slate-300 leading-relaxed line-clamp-3 mb-4">
-                    ${escapeHtml(item.summary)}
+                    ${escapeHtml(getDisplaySummary(item))}
                   </p>
                 </div>
 
@@ -1314,7 +1349,7 @@
                     </h4>
 
                     <p class="text-sm text-slate-400 leading-relaxed">
-                      ${escapeHtml(item.summary)}
+                      ${escapeHtml(getDisplaySummary(item))}
                     </p>
 
                     <div class="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
@@ -1517,6 +1552,10 @@
             `[재해·재난] API ${liveData.disasters.length}건 중 ${liveData.disasters.length - rejected.length}건 표출, ${rejected.length}건 필터 제외`
           );
           rejected.forEach((r) => console.info(` - 제외: ${r.title} → ${r.reason}`));
+          const genericCnt = liveData.disasters.filter((d) => GENERIC_TEXT_REGEX.test(normalizeText(d && (d.summary || d.content)))).length;
+          if (genericCnt > 0) {
+            console.warn(`[재해·재난] 서버(/api/news)가 상투 문구를 요약으로 보낸 기사 ${genericCnt}건 — api/news 프롬프트 수정 필요`);
+          }
           DISASTER_ARTICLES = liveData.disasters
             .filter(isStrictWeatherOrDisasterArticle)
             .map((d, idx) => ({
