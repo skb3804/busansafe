@@ -76,7 +76,7 @@
     </div>
 
     <!-- NAVIGATION TABS: 메인(재해·재난) vs 별도 탭(사건·사고) -->
-    <div class="max-w-5xl mx-auto px-4 flex space-x-2 border-t border-slate-800/80 pt-2">
+    <div class="max-w-5xl mx-auto px-4 flex space-x-2 border-t border-slate-800/80 pt-2 overflow-x-auto">
       <button
         type="button"
         id="tab-disaster"
@@ -100,6 +100,16 @@
           4
         </span>
       </button>
+
+      <button
+        type="button"
+        id="tab-satellite"
+        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
+      >
+        <i data-lucide="satellite" class="w-4 h-4"></i>
+        <span>실시간 위성영상</span>
+        <span class="ml-1 px-1.5 py-0.5 text-[10px] rounded-md bg-sky-600 text-white font-extrabold tracking-wide">LIVE</span>
+      </button>
     </div>
   </header>
 
@@ -107,7 +117,7 @@
   <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-5 space-y-5">
     
     <!-- 검색 및 부산 16개 구·군 필터 바 -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row gap-3">
+    <section id="search-filter-bar" class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row gap-3">
       <div class="relative flex-1">
         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
         <input
@@ -165,7 +175,10 @@
           <i data-lucide="cloud-rain" class="w-5 h-5 text-rose-400"></i>
           <span>실시간 재해 · 재난 특보 및 기사 (<span id="disaster-count">2</span>건)</span>
         </h3>
-        <span class="text-xs text-slate-400 hidden sm:inline">날씨 · 기상특보 · 재난안전 보도만 표출됩니다</span>
+        <div class="flex items-center space-x-2">
+          <span id="disaster-rejected-label" class="hidden text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 border border-slate-700 cursor-help"></span>
+          <span class="text-xs text-slate-400 hidden sm:inline">날씨 · 기상특보 · 재난안전 보도만 표출됩니다</span>
+        </div>
       </div>
 
       <!-- 재해·재난 카드 그리드 -->
@@ -197,8 +210,74 @@
       <div id="incident-list" class="space-y-3"></div>
     </div>
 
+    <!-- TAB 3: 실시간 위성영상 (레이더 + 위성) -->
+    <div id="view-satellite" class="hidden space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h3 class="text-base font-bold text-slate-200 flex items-center space-x-2">
+          <i data-lucide="satellite-dish" class="w-5 h-5 text-sky-400"></i>
+          <span>부산 실시간 레이더 · 위성영상</span>
+        </h3>
+        <div class="flex items-center space-x-2">
+          <span id="sat-updated-label" class="text-xs text-slate-400"></span>
+          <button
+            type="button"
+            id="btn-refresh-satellite"
+            class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+          >
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>새로고침</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- 레이더 영상 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="p-1.5 rounded-lg bg-emerald-950/60 text-emerald-400"><i data-lucide="radar" class="w-4 h-4"></i></span>
+              <span class="text-sm font-extrabold text-white">레이더영상</span>
+              <span class="text-[11px] text-slate-400">강수 · 호우 에코</span>
+            </div>
+            <a href="https://www.weather.go.kr/w/image/radar.do" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center space-x-1 text-[11px] font-semibold text-sky-300 hover:text-sky-200">
+              <span>기상청 원본</span>
+              <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+          <iframe id="frame-radar" title="부산 레이더영상" loading="lazy"
+            class="w-full h-[380px] sm:h-[460px] bg-slate-950 block" frameborder="0"
+            referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+
+        <!-- 실시간 위성영상 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="p-1.5 rounded-lg bg-sky-950/60 text-sky-400"><i data-lucide="satellite" class="w-4 h-4"></i></span>
+              <span class="text-sm font-extrabold text-white">실시간 위성영상</span>
+              <span class="text-[11px] text-slate-400">구름 · 적외/가시</span>
+            </div>
+            <a href="https://www.weather.go.kr/w/image/sat.do" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center space-x-1 text-[11px] font-semibold text-sky-300 hover:text-sky-200">
+              <span>기상청 원본</span>
+              <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+          <iframe id="frame-satellite" title="부산 실시간 위성영상" loading="lazy"
+            class="w-full h-[380px] sm:h-[460px] bg-slate-950 block" frameborder="0"
+            referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-500 leading-relaxed">
+        영상 제공: Windy.com (레이더·위성 합성). 재생 버튼으로 최근 흐름을 볼 수 있으며, 지도는 부산 중심으로 열립니다.
+        영상이 보이지 않으면 새로고침하거나 &lsquo;기상청 원본&rsquo; 링크를 이용해 주세요.
+      </p>
+    </div>
+
     <!-- BOTTOM SECTION: 최근 3일 날짜별 통합 정리 -->
-    <section class="pt-4 border-t border-slate-800 space-y-4">
+    <section id="timeline-section" class="pt-4 border-t border-slate-800 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center space-x-2">
           <div class="p-2 rounded-xl bg-slate-800 text-amber-400">
@@ -378,7 +457,8 @@
       selectedArticle: null,
       draftArticleTarget: null,
       lastManualFetchTime: 0,
-      isDisasterExpanded: false
+      isDisasterExpanded: false,
+      rejectedDisasters: []
     };
 
     // 유틸리티: HTML 이스케이프
@@ -408,25 +488,33 @@
     function findArticleById(id) {
       return [...DISASTER_ARTICLES, ...INCIDENT_ARTICLES].find((a) => a.id === id) || null;
     }
-    // 날씨·기상특보 및 실제 재해·재난·사회재난 보도 여부 정밀 판별 함수
-    function isStrictWeatherOrDisasterArticle(item) {
-      if (!item) return false;
+    // 날씨·기상특보 및 실제 재해·재난·사회재난 보도 여부 판별
+    // 탈락 사유 문자열을 반환하고, 통과하면 null 을 반환합니다.
+    // (완화) 제외 단어는 제목·카테고리에서만 검사하고, 재난 키워드는 제목 또는 카테고리에서 찾습니다.
+    function getDisasterRejectReason(item) {
+      if (!item) return '데이터 없음';
       const category = String(item.category || '');
       const title = String(item.title || '');
-      const summary = String(item.summary || '');
       const titleAndCategory = `${category} ${title}`;
-      const fullText = `${titleAndCategory} ${summary}`;
 
-      // 1. 항공·기업·경제·산업·행사·홍보성 보도자료 즉시 제외 (단, 추락·불시착·화재 등 실제 사고 키워드 동반 시 예외 허용)
+      // 1. 항공·기업·경제·산업·행사·홍보성 보도 제외 (단, 추락·불시착·화재 등 실제 사고 키워드 동반 시 예외 허용)
       const hasAviationIncident = /(추락|불시착|동체착륙|기체결함|비상착륙|엔진화재|활주로 이탈|충돌)/.test(titleAndCategory);
       const nonDisasterRegex = /(진에어|에어부산|대한항공|아시아나|제주항공|티웨이|이스타|항공편|취항|노선 확대|증편|특가|프로모션|할인|혁신기업|제조업|스타트업|벤처|투자유치|수출|무역|일자리|채용|축제|박람회|전시회|관광|문화행사|공연|MOU|협약|지원사업|공모|분양|어워드|수상|포럼|세미나|개최|육성|산업단지 조성|예산안|시의회|국비 확보|캠페인|설명회|간담회|업무협약|실적|영업이익|매출|주가|신제품|출시)/;
-      if (!hasAviationIncident && nonDisasterRegex.test(fullText)) {
-        return false;
+      const excl = titleAndCategory.match(nonDisasterRegex);
+      if (!hasAviationIncident && excl) {
+        return `제외 단어 포함: "${excl[0]}"`;
       }
 
-      // 2. 날씨·기상특보·자연재난·사회재난 핵심 키워드 검증 (제목 중심 검사로 오탐 방지)
-      const strictTitleWeatherDisasterRegex = /(날씨|기상|예보|특보|주의보|경보|태풍|호우|폭우|강풍|풍랑|대설|폭설|한파|폭염|건조특보|건조주의보|건조경보|황사|미세먼지|지진|해일|너울|산사태|침수|범람|홍수|가뭄|산불|화재|폭발|붕괴|누출|유출|사회재난|자연재난|재난|재해|대피|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|낙석|싱크홀|땅꺼짐|감염병|전염병|방역)/;
-      return strictTitleWeatherDisasterRegex.test(title);
+      // 2. 날씨·기상특보·자연재난·사회재난 핵심 키워드 (제목 또는 카테고리)
+      const weatherDisasterRegex = /(날씨|기상|예보|특보|주의보|경보|태풍|호우|폭우|강풍|풍랑|대설|폭설|한파|폭염|건조특보|건조주의보|건조경보|황사|미세먼지|지진|해일|너울|산사태|침수|범람|홍수|가뭄|산불|화재|폭발|붕괴|누출|유출|사회재난|자연재난|재난|재해|대피|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|낙석|싱크홀|땅꺼짐|감염병|전염병|방역)/;
+      if (!weatherDisasterRegex.test(titleAndCategory)) {
+        return '제목·카테고리에 재난 키워드 없음';
+      }
+      return null;
+    }
+
+    function isStrictWeatherOrDisasterArticle(item) {
+      return getDisasterRejectReason(item) === null;
     }
 
     // 위험 등급별 스타일 반환
@@ -952,6 +1040,59 @@
       });
     }
 
+    // --- 실시간 위성영상 탭: 레이더 / 위성 임베드 (부산 중심) ---
+    const BUSAN_LAT = 35.18;
+    const BUSAN_LON = 129.07;
+    let satLoadedOnce = false;
+    let satRefreshTimer = null;
+
+    function buildWindyUrl(overlay) {
+      const q = new URLSearchParams({
+        lat: BUSAN_LAT,
+        lon: BUSAN_LON,
+        detailLat: BUSAN_LAT,
+        detailLon: BUSAN_LON,
+        zoom: 7,
+        level: 'surface',
+        overlay: overlay,
+        product: overlay,
+        menu: '',
+        message: 'true',
+        marker: 'true',
+        calendar: 'now',
+        type: 'map',
+        location: 'coordinates',
+        detail: '',
+        metricWind: 'm/s',
+        metricTemp: '°C',
+        radarRange: '-1',
+      });
+      return 'https://embed.windy.com/embed2.html?' + q.toString();
+    }
+
+    function loadSatelliteFrames(force) {
+      if (!satLoadedOnce || force) {
+        document.getElementById('frame-radar').src = buildWindyUrl('radar');
+        document.getElementById('frame-satellite').src = buildWindyUrl('satellite');
+        satLoadedOnce = true;
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('sat-updated-label').textContent = hh + ':' + mm + ' 갱신';
+      }
+      // 탭을 보고 있는 동안 10분마다 자동 새로고침
+      if (!satRefreshTimer) {
+        satRefreshTimer = setInterval(() => loadSatelliteFrames(true), 10 * 60 * 1000);
+      }
+    }
+
+    function stopSatelliteAutoRefresh() {
+      if (satRefreshTimer) {
+        clearInterval(satRefreshTimer);
+        satRefreshTimer = null;
+      }
+    }
+
     // 전체 UI 렌더링
     function renderAll() {
       // 1. 저장함 버튼 상태
@@ -963,22 +1104,40 @@
         bookmarkBtn.className = 'flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
       }
 
-      // 2. 탭 버튼 & 뷰 전환
-      const tabDis = document.getElementById('tab-disaster');
-      const tabInc = document.getElementById('tab-incident');
-      const viewDis = document.getElementById('view-disaster');
-      const viewInc = document.getElementById('view-incident');
-
-      if (state.activeTab === 'disaster') {
-        tabDis.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition bg-rose-950/40 text-rose-300 border-rose-500';
-        tabInc.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50';
-        viewDis.classList.remove('hidden');
-        viewInc.classList.add('hidden');
+      // 2. 탭 버튼 & 뷰 전환 (재해·재난 / 사건·사고 / 실시간 위성영상)
+      const TAB_BASE = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap ';
+      const TAB_IDLE = TAB_BASE + 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50';
+      const TAB_ACTIVE = {
+        disaster: TAB_BASE + 'bg-rose-950/40 text-rose-300 border-rose-500',
+        incident: TAB_BASE + 'bg-indigo-950/50 text-indigo-300 border-indigo-500',
+        satellite: TAB_BASE + 'bg-sky-950/50 text-sky-300 border-sky-500',
+      };
+      ['disaster', 'incident', 'satellite'].forEach((key) => {
+        const isActive = state.activeTab === key;
+        document.getElementById('tab-' + key).className = isActive ? TAB_ACTIVE[key] : TAB_IDLE;
+        document.getElementById('view-' + key).classList.toggle('hidden', !isActive);
+      });
+      // 위성영상 탭에서는 기사 검색바 · 날짜별 브리핑을 숨김
+      const isSat = state.activeTab === 'satellite';
+      document.getElementById('search-filter-bar').classList.toggle('hidden', isSat);
+      document.getElementById('timeline-section').classList.toggle('hidden', isSat);
+      if (isSat) {
+        loadSatelliteFrames(false);
       } else {
-        tabDis.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50';
-        tabInc.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition bg-indigo-950/50 text-indigo-300 border-indigo-500';
-        viewDis.classList.add('hidden');
-        viewInc.classList.remove('hidden');
+        stopSatelliteAutoRefresh();
+      }
+
+      // 필터 제외 건수 라벨 (마우스를 올리면 제외된 기사와 사유 표시)
+      const rejLabel = document.getElementById('disaster-rejected-label');
+      if (rejLabel) {
+        const rej = state.rejectedDisasters || [];
+        if (rej.length > 0) {
+          rejLabel.textContent = `필터 제외 ${rej.length}건`;
+          rejLabel.title = rej.map((r) => `• ${r.title}\n   → ${r.reason}`).join('\n');
+          rejLabel.classList.remove('hidden');
+        } else {
+          rejLabel.classList.add('hidden');
+        }
       }
 
       // 3. 재해·재난 카드 렌더링 (날씨·재난 엄격 필터 + 4건 초과 시 하단 더보기 확장)
@@ -1348,6 +1507,16 @@
         }
 
         if (Array.isArray(liveData.disasters)) {
+          const rejected = [];
+          liveData.disasters.forEach((d) => {
+            const reason = getDisasterRejectReason(d);
+            if (reason) rejected.push({ title: String((d && d.title) || '(제목 없음)'), reason });
+          });
+          state.rejectedDisasters = rejected;
+          console.info(
+            `[재해·재난] API ${liveData.disasters.length}건 중 ${liveData.disasters.length - rejected.length}건 표출, ${rejected.length}건 필터 제외`
+          );
+          rejected.forEach((r) => console.info(` - 제외: ${r.title} → ${r.reason}`));
           DISASTER_ARTICLES = liveData.disasters
             .filter(isStrictWeatherOrDisasterArticle)
             .map((d, idx) => ({
@@ -1446,6 +1615,13 @@
       document.getElementById('tab-incident').addEventListener('click', () => {
         state.activeTab = 'incident';
         renderAll();
+      });
+      document.getElementById('tab-satellite').addEventListener('click', () => {
+        state.activeTab = 'satellite';
+        renderAll();
+      });
+      document.getElementById('btn-refresh-satellite').addEventListener('click', () => {
+        loadSatelliteFrames(true);
       });
 
       // 저장함 필터 토글
