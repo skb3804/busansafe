@@ -29,11 +29,11 @@
   <!-- TOP HEADER -->
   <header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800">
     <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-      <!-- Btv 로고 및 초기화면 복귀 버튼 -->
+      <!-- Btv 로고 및 초기화면 복귀 · 최신 기사 업데이트 버튼 -->
       <button
         type="button"
         id="btn-reset-home"
-        title="초기화면으로 돌아가기"
+        title="초기화면 복귀 및 최신 기사 업데이트"
         class="flex items-center space-x-3 text-left group focus:outline-none cursor-pointer"
       >
         <div class="px-2.5 h-10 rounded-xl bg-gradient-to-br from-rose-600 via-red-600 to-amber-500 p-[1.5px] shadow-lg shadow-rose-950/50 group-hover:scale-105 transition-transform">
@@ -218,7 +218,7 @@
         <span>·</span>
         <span>기상청 · 부산 안전 ON · 부산소방재난본부 · 언론사 보도 기반</span>
       </div>
-      <div>최근 3일(2026.11.10 ~ 11.12) 통합 브리핑</div>
+      <div id="footer-briefing-period">최근 3일(2026.11.10 ~ 11.12) 통합 브리핑</div>
     </div>
   </footer>
 
@@ -395,7 +395,8 @@
       showBookmarksOnly: false,
       selectedTimelineDate: 'ALL',
       selectedArticle: null,
-      draftArticleTarget: null
+      draftArticleTarget: null,
+      lastManualFetchTime: 0
     };
 
     // 유틸리티: HTML 이스케이프
@@ -488,8 +489,13 @@
           shortScript = `지난 10일 오전 8시 40분쯤 부산 강서구 미음동의 한 금속제품 제조 공장에서 1톤 무게의 철판이 떨어져 40대 근로자가 숨졌습니다. 숨진 근로자는 공장 내부에서 용접 작업을 진행하던 중 머리 위로 낙하한 철판에 변을 당한 것으로 파악됐습니다. 경찰과 노동당국은 현장 작업자들의 안전수칙 준수 여부와 정확한 사고 원인을 조사하고 있습니다.`;
           break;
         default: {
-          const cleanTitle = article.title.replace(/…/g, ', ');
-          shortScript = `${article.district} 일대에서 ${cleanTitle} 소식이 전해졌습니다. ${article.summary} 관계 당국은 현장 안전 관리와 함께 정확한 경위를 파악하고 있으며, 시민들의 각별한 주의를 당부했습니다.`;
+          const cleanTitle = (article.title || '').replace(/…/g, ', ').replace(/\(출처:[^)]+\)/g, '').trim();
+          const cleanSummary = (article.summary || '')
+            .replace(/\(출처:[^)]+\)/g, '')
+            .replace(/^[가-힣A-Za-z0-9·\s]+에\s*따르면\s*/g, '')
+            .replace(/밝혔습니다\.?$/g, '전해졌습니다.')
+            .trim();
+          shortScript = `${article.district} 일대에서 ${cleanTitle} 소식이 전해졌습니다. ${cleanSummary} 관계 당국은 현장 안전 관리와 함께 정확한 경위를 파악하고 있으며, 시민들의 각별한 주의를 당부했습니다.`;
           break;
         }
       }
@@ -1286,21 +1292,49 @@
     }
 
     // Vercel 백엔드(/api/news)에서 실시간 제미나이 검색 데이터 불러오기
-    async function loadLiveNewsFromVercel() {
+    async function loadLiveNewsFromVercel(isManualRefresh = false) {
       const statusEl = document.getElementById('live-sync-status');
       if (window.location.protocol === 'file:') {
+        if (isManualRefresh) {
+          showToast('초기 화면으로 복귀했습니다. (로컬 파일 모드)');
+        }
         return; // 로컬 파일(file://) 단독 실행 시에는 기본 데이터 유지
+      }
+
+      // 연속 클릭 시 429 할당량 초과 방지를 위한 15초 쿨다운 보호
+      if (isManualRefresh) {
+        const now = Date.now();
+        const elapsed = now - state.lastManualFetchTime;
+        if (state.lastManualFetchTime > 0 && elapsed < 15000) {
+          const remainSec = Math.ceil((15000 - elapsed) / 1000);
+          showToast(`초기 화면으로 복귀했습니다. (${remainSec}초 후 재수집 가능)`);
+          return;
+        }
+        state.lastManualFetchTime = now;
       }
 
       try {
         if (statusEl) {
-          statusEl.textContent = '실시간 수집 중...';
+          statusEl.textContent = '최신 기사 업데이트 중...';
           statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-600/50 animate-pulse';
         }
+        if (isManualRefresh) {
+          showToast('최신 기사를 불러오고 있습니다...');
+        }
 
-        const response = await fetch('/api/news');
-        if (!response.ok) throw new Error('API 응답 없음');
-        const liveData = await response.json();
+        // 캐시 우회를 위해 수동 클릭 시 타임스탬프 쿼리 및 no-store 옵션 적용
+        const apiUrl = isManualRefresh ? `/api/news?t=${Date.now()}` : '/api/news';
+        const response = await fetch(apiUrl, isManualRefresh ? { cache: 'no-store' } : {});
+        const liveData = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const errCode = liveData?.status || response.status;
+          const errReason =
+            errCode === 429
+              ? 'API 할당량 초과(429) - 잠시 후 다시 시도해 주세요'
+              : liveData?.error || `서버 응답 오류(${errCode})`;
+          throw new Error(errReason);
+        }
 
         if (Array.isArray(liveData.disasters) && liveData.disasters.length > 0) {
           DISASTER_ARTICLES = liveData.disasters.map((d, idx) => ({
@@ -1322,6 +1356,13 @@
 
         if (Array.isArray(liveData.recentDays) && liveData.recentDays.length > 0) {
           RECENT_THREE_DAYS = liveData.recentDays;
+          const sortedDates = RECENT_THREE_DAYS.map((d) => d.date).filter(Boolean).sort();
+          const footerPeriodEl = document.getElementById('footer-briefing-period');
+          if (footerPeriodEl && sortedDates.length > 0) {
+            const startD = sortedDates[0].replace(/-/g, '.');
+            const endD = sortedDates[sortedDates.length - 1].slice(5).replace(/-/g, '.');
+            footerPeriodEl.textContent = `최근 3일(${startD} ~ ${endD}) 통합 브리핑`;
+          }
         }
 
         if (liveData.bannerHeadline) {
@@ -1337,10 +1378,16 @@
         }
 
         renderAll();
+        if (isManualRefresh) {
+          showToast('최신 기사로 업데이트되었습니다.');
+        }
       } catch (err) {
         if (statusEl) {
           statusEl.textContent = '기본 브리핑 모드';
           statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/80';
+        }
+        if (isManualRefresh) {
+          showToast(err.message || '최신 기사 업데이트 중 일시적 지연이 발생했습니다.');
         }
       }
     }
@@ -1353,7 +1400,7 @@
         (d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`
       ).join('');
 
-      // Btv 로고 클릭 -> 초기화면 복귀
+      // Btv 로고 및 부산 안전 브리핑 클릭 -> 초기화면 복귀 + 최신 기사 업데이트
       document.getElementById('btn-reset-home').addEventListener('click', () => {
         state.activeTab = 'disaster';
         state.selectedDistrict = '전체 구·군';
@@ -1367,6 +1414,7 @@
         closeDraftModal();
         window.scrollTo({ top: 0, behavior: 'smooth' });
         renderAll();
+        loadLiveNewsFromVercel(true);
       });
 
       // 탭 전환
