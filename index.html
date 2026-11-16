@@ -500,15 +500,10 @@
       return others.some((a) => normalizeText(a.summary) === t || normalizeText(a.content) === t);
     }
 
-    // 카드·목록에 보일 요약: summary → content(앞부분) 순서로 실제 내용 선택
+    // 카드·목록에 보일 요약(제목 밑 1~2줄): 기사 내용에서 핵심만 뽑아 압축
     function getDisplaySummary(item) {
       if (!item) return '';
-      if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
-      if (!isGenericText(item.content, item)) {
-        const c = normalizeText(item.content);
-        return c.length > 160 ? c.slice(0, 157) + '…' : c;
-      }
-      return '';
+      return summarizeForCard(item, 100);
     }
 
     // 상세 모달에 보일 본문: content → summary 순서
@@ -517,6 +512,194 @@
       if (!isGenericText(item.content, item)) return normalizeText(item.content);
       if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
       return '기사 상세 내용이 제공되지 않았습니다. 출처 링크에서 원문을 확인해 주세요.';
+    }
+
+    // --- 카드 요약 / 30초 방송용 원고 생성 유틸리티 ---
+    function cleanArticleText(t) {
+      return normalizeText(t)
+        .replace(/\(출처:[^)]*\)/g, '')
+        .replace(/\[[^\]]{0,30}(기자|특파원|앵커)[^\]]{0,30}\]/g, '')
+        .replace(/https?:\/\/\S+/g, '')
+        .replace(/[▶▷◆■●※]\s*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function splitSentences(text) {
+      return String(text || '')
+        .replace(/([.!?])\s+/g, '$1\u0001')
+        .split('\u0001')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    }
+
+    function bigramSimilarity(a, b) {
+      const grams = (s) => {
+        const t = String(s || '').replace(/[^가-힣A-Za-z0-9]/g, '');
+        const set = new Set();
+        for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+        return set;
+      };
+      const A = grams(a);
+      const B = grams(b);
+      if (A.size === 0 || B.size === 0) return 0;
+      let inter = 0;
+      A.forEach((g) => { if (B.has(g)) inter++; });
+      return inter / Math.min(A.size, B.size);
+    }
+
+    // 어절 앞 2글자(어간) 기준 겹침 비율 - 같은 사실을 다른 표현으로 반복하는 문장 걸러내기
+    function stemSimilarity(a, b) {
+      const stems = (s) => {
+        const set = new Set();
+        String(s || '').split(/\s+/).forEach((w) => {
+          const t = w.replace(/[^가-힣A-Za-z0-9]/g, '');
+          if (t.length >= 2) set.add(t.slice(0, 2));
+        });
+        return set;
+      };
+      const A = stems(a);
+      const B = stems(b);
+      if (A.size === 0 || B.size === 0) return 0;
+      let inter = 0;
+      A.forEach((g) => { if (B.has(g)) inter++; });
+      return inter / Math.min(A.size, B.size);
+    }
+
+    // "○○에 따르면 / ○○은 ~라고 밝혔다" 같은 출처 도입부 제거 (카드 요약용)
+    function stripAttribution(s) {
+      return s.replace(/^[^,.]{1,28}(에\s*따르면|에\s*의하면)\s*/, '').trim();
+    }
+
+    // 지정 글자 수 안으로 줄이되 단어/절 경계에서 자름
+    function shortenText(text, max) {
+      if (text.length <= max) return text;
+      const head = text.slice(0, max);
+      const cut = Math.max(head.lastIndexOf(', '), head.lastIndexOf(' '));
+      const base = cut >= max * 0.6 ? head.slice(0, cut) : head;
+      return base.replace(/[,\s]+$/, '') + '…';
+    }
+
+    // 카드(제목 밑 1~2줄)용 요약: 기사 내용에서 핵심 1~2문장을 골라 압축
+    function summarizeForCard(item, maxLen = 100) {
+      if (!item) return '';
+      const title = normalizeText(item.title);
+      const pool = [item.summary, item.content]
+        .filter((t) => !isGenericText(t, item))
+        .map(cleanArticleText)
+        .filter(Boolean);
+      if (pool.length === 0) return '';
+      // 제목을 그대로 되풀이하는 문장은 피하고 실제 내용이 담긴 쪽을 사용
+      const src = pool.find((t) => bigramSimilarity(t, title) < 0.75) || pool[0];
+      const sents = splitSentences(src).map(stripAttribution).filter((s) => s.length > 5);
+      if (sents.length === 0) return shortenText(src, maxLen);
+      let out = sents[0];
+      if (sents[1] && (out + ' ' + sents[1]).length <= maxLen) out += ' ' + sents[1];
+      return shortenText(out, maxLen);
+    }
+
+    // 문어체(~했다.) → 방송체(~했습니다.)
+    function toBroadcastEnding(sentence) {
+      let t = sentence.trim();
+      if (/(습니다|입니다|합니다|됩니다|니다)[.!?]?$/.test(t)) return /[.!?]$/.test(t) ? t : t + '.';
+      if (!/다\.?$/.test(t)) return /[.!?]$/.test(t) ? t : t + '.';
+      t = t.replace(/\.$/, '');
+      t = t.replace(/는다$/, '습니다');
+      if (!/습니다$/.test(t)) {
+        t = t.replace(/([가-힣])다$/, (m, ch) => {
+          const code = ch.charCodeAt(0) - 0xac00;
+          if (code < 0 || code > 11171) return m;
+          const jong = code % 28;
+          if (jong === 20 || jong === 18) return ch + '습니다'; // ㅆ, ㅄ  (했다·있다·없다)
+          if (ch === '이') return '입니다';
+          if (jong === 4) return String.fromCharCode(0xac00 + code - 4 + 17) + '니다'; // ㄴ→ㅂ (한다→합니다)
+          if (jong === 0) return String.fromCharCode(0xac00 + code + 17) + '니다'; // 하다→합니다
+          return m;
+        });
+      }
+      return t + '.';
+    }
+
+    // 30초(공백 제외 약 175자) 방송용 단신 원고 생성
+    // 구성: ① 핵심 요약(리드: 언제·어디서·무슨 일) → ② 본문 세부 내용 → ③ (재해·재난) 행동요령
+    function buildBroadcastScript(article) {
+      const MAX_CHARS = 175;
+      const noSpace = (s) => s.replace(/\s+/g, '').length;
+      const dayWord = ((article.dateLabel || '').match(/(오늘|어제|그제)/) || [])[1] || '';
+      const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(article.date || '');
+      const dayNum = hasDate ? parseInt(article.date.slice(8), 10) : 0;
+      const monNum = hasDate ? parseInt(article.date.slice(5, 7), 10) : 0;
+
+      // 날짜 표현을 방송식 상대 표현으로 (11월 11일 / 11일 → 어제)
+      const relDay = (s) => {
+        if (!dayWord || !dayNum) return s;
+        return s.replace(/(지난\s*)?(?:(\d{1,2})월\s*)?(\d{1,2})일(?!\d)/g, (m, jinan, mon, day) => {
+          if (parseInt(day, 10) !== dayNum) return m;
+          if (mon && parseInt(mon, 10) !== monNum) return m;
+          return dayWord;
+        });
+      };
+      const prep = (text) =>
+        splitSentences(cleanArticleText(text).replace(/\([^)]{0,40}\)/g, ''))
+          .filter((s) => s.length > 6)
+          .map(relDay);
+
+      const summarySents = !isGenericText(article.summary, article) ? prep(article.summary) : [];
+      const contentSents = !isGenericText(article.content, article) ? prep(article.content) : [];
+
+      const picked = [];
+      const add = (s, thr) => {
+        const dup = picked.some((x, i) =>
+          i === 0
+            ? bigramSimilarity(x, s) > thr || stemSimilarity(x, s) > 0.35 // 리드와 같은 사실이면 제외
+            : bigramSimilarity(x, s) > 0.6 || stemSimilarity(x, s) > 0.6
+        );
+        if (!dup) picked.push(s);
+      };
+      // 리드는 요약문(핵심), 없으면 본문 첫 문장
+      if (summarySents.length) add(summarySents[0], 1);
+      contentSents.forEach((s) => add(s, 0.3));
+      if (picked.length === 0) summarySents.concat(contentSents).forEach((s) => add(s, 0.45));
+
+      // 리드 문장에 시점이 없으면 "어제/오늘/그제" 붙이기
+      if (picked.length && dayWord && !/(오늘|어제|그제|지난|\d+일)/.test(picked[0])) {
+        picked[0] = `${dayWord} ${picked[0]}`;
+      }
+
+      let lines = picked.map(toBroadcastEnding);
+      if (lines.length === 0) {
+        const t = cleanArticleText(article.title).replace(/…/g, ', ');
+        lines = [`${dayWord ? dayWord + ' ' : ''}부산 ${article.district || ''} 일대에서 ${t} 소식입니다.`, '정확한 경위는 확인되는 대로 전해드리겠습니다.'];
+      }
+
+      // 리드는 무조건 포함, 나머지는 리드와 겹치지 않는(새 정보가 많은) 문장부터 분량이 허락하는 만큼 채운 뒤 원래 순서로 정렬
+      const MAX = MAX_CHARS + 15;
+      let used = noSpace(lines[0]);
+      const chosen = new Set([0]);
+      lines
+        .map((line, idx) => ({ line, idx, overlap: idx === 0 ? 1 : Math.max(bigramSimilarity(lines[0], line), stemSimilarity(lines[0], line)) }))
+        .filter((o) => o.idx > 0)
+        .sort((a, b) => a.overlap - b.overlap)
+        .forEach((o) => {
+          const len = noSpace(o.line);
+          if (used + len <= MAX) {
+            chosen.add(o.idx);
+            used += len;
+          }
+        });
+      const out = lines.filter((_, idx) => chosen.has(idx));
+
+      // 재해·재난 기사는 행동요령으로 마무리 (분량이 허락할 때)
+      if (article.actionGuide) {
+        const first = splitSentences(cleanArticleText(article.actionGuide))[0] || '';
+        const guide = first ? toBroadcastEnding(first) : '';
+        if (guide.length > 4 && used + noSpace(guide) <= MAX_CHARS + 25) {
+          out.push(guide);
+          used += noSpace(guide);
+        }
+      }
+
+      return out.join(' ');
     }
 
     // 기사 검색 유틸리티
@@ -586,41 +769,11 @@
     function generateShortNewsDraft(article) {
       if (!article) return null;
 
-      let shortScript = '';
-
-      switch (article.id) {
-        case 'dis-1':
-          shortScript = `남해동부바깥먼바다에 풍랑주의보가 발효되면서 부산 앞바다에도 높은 물결이 일고 있습니다. 부산 내륙 지역은 별다른 기상특보 없이 맑은 날씨를 보이고 있지만, 해안가에는 너울성 파도가 유입될 가능성이 큽니다. 항해나 조업에 나서는 선박은 기상 상황을 수시로 확인하고, 시민들도 방파제나 갯바위 출입을 자제하는 등 해안가 안전사고에 각별히 유의하셔야겠습니다.`;
-          break;
-        case 'dis-3':
-          shortScript = `부산 도심 주요 간선도로와 외곽순환고속도로 곳곳에서 도로 작업과 장애물 처리로 인한 부분 통제가 잇따르고 있습니다. 동서고가로 시외곽 방향과 황령대로 황령터널 방면은 야간 시간대 차로가 축소 운영되며, 부산외곽순환선 철마1터널 일대에서도 도로 정비가 진행됐습니다. 해당 구간을 지나는 차량은 감속 운행하고 우회 도로를 확인하시기 바랍니다.`;
-          break;
-        case 'inc-1':
-          shortScript = `어제 저녁 부산 북구의 한 다가구주택 지하층에서 불이 나 소방대에 의해 진화됐습니다. 화재 당시 건물 안에 있던 주민 6명은 단독경보형 화재경보기 소리와 연기를 감지하고 신속히 건물 밖으로 대피해 다행히 인명피해는 발생하지 않았습니다. 소방당국은 주방 내 소형 가전제품에서 전기적 요인으로 불이 시작된 것으로 보고 정확한 화재 원인을 조사하고 있습니다.`;
-          break;
-        case 'inc-2':
-          shortScript = `어제 부산 도심 도로에서 음주운전 차량이 앞서가던 승용차를 들이받았습니다. 이 추돌 충격으로 밀려난 승용차가 도로변 편의점 유리창을 뚫고 돌진하면서, 운전자와 매장 내부에 있던 시민 등 1명이 중상을 입고 6명이 경상을 입어 병원으로 옮겨졌습니다. 경찰은 음주운전자를 입건해 정확한 사고 경위를 조사하고 있습니다.`;
-          break;
-        case 'inc-3':
-          shortScript = `직장 내 여자화장실에 불법촬영 카메라를 설치해 해임된 전직 우체국 사무장이 징계에 불복해 소송을 냈지만 항소심에서도 패소했습니다. 부산고등법원은 전직 사무장 A씨가 낸 해임처분 취소 소송 항소심에서 1심과 마찬가지로 원고 청구를 기각했습니다. 재판부는 공직 기강 확립과 비위 행위의 중대성을 고려할 때 해임 처분이 정당하다고 판시했습니다.`;
-          break;
-        case 'inc-4':
-          shortScript = `지난 10일 오전 8시 40분쯤 부산 강서구 미음동의 한 금속제품 제조 공장에서 1톤 무게의 철판이 떨어져 40대 근로자가 숨졌습니다. 숨진 근로자는 공장 내부에서 용접 작업을 진행하던 중 머리 위로 낙하한 철판에 변을 당한 것으로 파악됐습니다. 경찰과 노동당국은 현장 작업자들의 안전수칙 준수 여부와 정확한 사고 원인을 조사하고 있습니다.`;
-          break;
-        default: {
-          const cleanTitle = (article.title || '').replace(/…/g, ', ').replace(/\(출처:[^)]+\)/g, '').trim();
-          const cleanSummary = (getDisplaySummary(article) || '')
-            .replace(/\(출처:[^)]+\)/g, '')
-            .replace(/^[가-힣A-Za-z0-9·\s]+에\s*따르면\s*/g, '')
-            .replace(/밝혔습니다\.?$/g, '전해졌습니다.')
-            .trim();
-          shortScript = `${article.district} 일대에서 ${cleanTitle} 소식이 전해졌습니다. ${cleanSummary} 관계 당국은 현장 안전 관리와 함께 정확한 경위를 파악하고 있으며, 시민들의 각별한 주의를 당부했습니다.`;
-          break;
-        }
-      }
+      // 기사 내용(요약·본문)을 바탕으로 30초 분량 방송체 원고 생성
+      const shortScript = buildBroadcastScript(article);
 
       const charCount = shortScript.replace(/\s+/g, '').length;
-      const estimatedSeconds = Math.min(32, Math.max(24, Math.round(charCount / 6.2)));
+      const estimatedSeconds = Math.max(1, Math.round(charCount / 6.2));
 
       let followUpItems = [];
       if (article.category.includes('해상') || article.category.includes('풍랑')) {
@@ -880,7 +1033,7 @@
               </span>
               <div class="flex items-center space-x-2 text-xs">
                 <span class="px-2 py-0.5 rounded-lg bg-emerald-950 text-emerald-300 border border-emerald-700/60 font-bold">
-                  예상 낭독 ${draftData.estimatedSeconds}초 (30초 이내)
+                  예상 낭독 약 ${draftData.estimatedSeconds}초${draftData.estimatedSeconds <= 32 ? ' (30초 내외)' : ' (30초 초과)'}
                 </span>
                 <span class="text-slate-400">
                   공백제외 ${draftData.charCount}자
@@ -1348,7 +1501,7 @@
                       ${escapeHtml(item.title)}
                     </h4>
 
-                    <p class="text-sm text-slate-400 leading-relaxed">
+                    <p class="text-sm text-slate-400 leading-relaxed line-clamp-2">
                       ${escapeHtml(getDisplaySummary(item))}
                     </p>
 
