@@ -185,7 +185,7 @@
       <div id="incident-list" class="space-y-3"></div>
     </div>
 
-    <!-- BOTTOM SECTION: 최근 3일 날짜별 통합 정리 (11월 10일 ~ 11월 12일) -->
+    <!-- BOTTOM SECTION: 최근 3일 날짜별 통합 정리 -->
     <section class="pt-4 border-t border-slate-800 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center space-x-2">
@@ -236,14 +236,14 @@
     </div>
   </div>
 
-  <!-- TOAST NOTIFICATION (alert 대신 커스텀 알림 메시지 박스 사용) -->
+  <!-- TOAST NOTIFICATION -->
   <div id="toast-box" class="hidden fixed bottom-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-xl border border-emerald-400/50 text-xs font-bold flex items-center space-x-2">
     <i data-lucide="check-circle-2" class="w-4 h-4"></i>
     <span id="toast-message">처리가 완료되었습니다.</span>
   </div>
 
   <script>
-    // --- 기본 내장 데이터 (실제 재해·재난 특보 및 도로·재난 통제 보도만 엄선, 억지로 개수를 채우지 않음) ---
+    // --- 기본 내장 데이터 (실제 재해·재난 특보 및 도로·재난 통제 보도만 엄선) ---
     let DISASTER_ARTICLES = [
       {
         id: 'dis-1',
@@ -279,7 +279,7 @@
       }
     ];
 
-    // --- 최근 3일(2026.11.10 ~ 2026.11.12) 부산 지역 사건·사고 기사 데이터 ---
+    // --- 최근 3일 부산 지역 사건·사고 기사 데이터 ---
     let INCIDENT_ARTICLES = [
       {
         id: 'inc-1',
@@ -425,7 +425,7 @@
       }
     }
 
-    // 30초 단신 기사 및 연계기사 아이템 생성 (인용구 없이 핵심 사실 기반 자체 기사 작성)
+    // 30초 단신 기사 및 연계기사 아이템 생성
     function generateShortNewsDraft(article) {
       if (!article) return null;
 
@@ -435,14 +435,8 @@
         case 'dis-1':
           shortScript = `남해동부바깥먼바다에 풍랑주의보가 발효되면서 부산 앞바다에도 높은 물결이 일고 있습니다. 부산 내륙 지역은 별다른 기상특보 없이 맑은 날씨를 보이고 있지만, 해안가에는 너울성 파도가 유입될 가능성이 큽니다. 항해나 조업에 나서는 선박은 기상 상황을 수시로 확인하고, 시민들도 방파제나 갯바위 출입을 자제하는 등 해안가 안전사고에 각별히 유의하셔야겠습니다.`;
           break;
-        case 'dis-2':
-          shortScript = `겨울철을 앞두고 부산 시내 다중이용시설에 대한 화재안전조사가 진행됩니다. 이번 점검에서는 비상구 폐쇄 여부와 소방시설 정상 작동 상태를 집중적으로 살핍니다. 이와 함께 경부선과 남해선 등 부산권 주요 고속도로에서는 한 달 동안 화물차 지정차로 위반과 과속 행위에 대한 집중단속이 이어져 운전자들의 안전운행이 요구됩니다.`;
-          break;
         case 'dis-3':
           shortScript = `부산 도심 주요 간선도로와 외곽순환고속도로 곳곳에서 도로 작업과 장애물 처리로 인한 부분 통제가 잇따르고 있습니다. 동서고가로 시외곽 방향과 황령대로 황령터널 방면은 야간 시간대 차로가 축소 운영되며, 부산외곽순환선 철마1터널 일대에서도 도로 정비가 진행됐습니다. 해당 구간을 지나는 차량은 감속 운행하고 우회 도로를 확인하시기 바랍니다.`;
-          break;
-        case 'dis-4':
-          shortScript = `맑고 일교차가 큰 가을 날씨가 이어지면서 부산 시내 주요 산림 일대에 산불 예방 비상근무가 가동됐습니다. 금정산과 장산 등 주요 등산로 입구에는 산불감시원이 집중 배치됐으며, 산림 인접 지역의 불법 소각 행위에 대한 단속도 한층 강화됩니다. 등산객들은 입산 시 화기 소지를 삼가고 산불 예방 수칙을 철저히 지켜주셔야겠습니다.`;
           break;
         case 'inc-1':
           shortScript = `어제 저녁 부산 북구의 한 다가구주택 지하층에서 불이 나 소방대에 의해 진화됐습니다. 화재 당시 건물 안에 있던 주민 6명은 단독경보형 화재경보기 소리와 연기를 감지하고 신속히 건물 밖으로 대피해 다행히 인명피해는 발생하지 않았습니다. 소방당국은 주방 내 소형 가전제품에서 전기적 요인으로 불이 시작된 것으로 보고 정확한 화재 원인을 조사하고 있습니다.`;
@@ -828,7 +822,7 @@
       document.getElementById('draft-modal').classList.add('hidden');
     }
 
-    // 클립보드 복사 (iFrame 호환 execCommand 방식)
+    // 클립보드 복사
     function copyDraftText() {
       if (!state.draftArticleTarget) return;
       const draftData = generateShortNewsDraft(state.draftArticleTarget);
@@ -1295,7 +1289,6 @@
           showToast('최신 기사를 불러오고 있습니다...');
         }
 
-        // 로컬 PC(file://)에서 실행할 때도 배포된 Vercel 백엔드(https://busansafe.vercel.app)를 직접 호출
         const baseApiUrl =
           window.location.protocol === 'file:'
             ? 'https://busansafe.vercel.app/api/news'
@@ -1313,14 +1306,19 @@
           throw new Error(errReason);
         }
 
-        // 재해·재난 관련 키워드 검증 (단순 행정·홍보성 기사가 섞여 들어오는 현상 방지)
-        const disasterKeywordRegex = /(태풍|호우|폭우|강풍|풍랑|대설|한파|폭염|건조|황사|지진|해일|너울|산사태|침수|범람|홍수|산불|화재|폭발|붕괴|누출|특보|주의보|경보|재난|재해|대피|통제|결항|단수|정전|낙석|싱크홀)/;
+        // 1. 일반 행정·경제·산업·홍보성 보도자료 차단 필터
+        const nonDisasterRegex = /(혁신기업|제조업|스타트업|벤처|투자유치|수출|무역|일자리|채용|축제|박람회|전시회|관광|문화행사|공연|MOU|협약|지원사업|공모|분양|어워드|수상|포럼|세미나|개최|육성|산업단지 조성|예산안|시의회|국비 확보)/;
+
+        // 2. 실제 기상특보 및 재해·재난·안전통제 핵심 키워드 엄격 검증 (제목 및 분류 중심)
+        const strictDisasterRegex = /(태풍|호우|폭우|강풍|풍랑|대설|한파|폭염|건조특보|건조주의보|건조경보|황사|지진|지진해일|너울|산사태|침수|범람|홍수|산불|화재|폭발|붕괴|가스누출|화학사고|기상특보|주의보|경보|재난|재해|주민대피|긴급대피|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|낙석|싱크홀|땅꺼짐|비상근무)/;
 
         if (Array.isArray(liveData.disasters)) {
           DISASTER_ARTICLES = liveData.disasters
             .filter((d) => {
-              const combinedText = `${d.category || ''} ${d.title || ''} ${d.summary || ''}`;
-              return disasterKeywordRegex.test(combinedText);
+              const titleAndCat = `${d.category || ''} ${d.title || ''}`;
+              const fullText = `${titleAndCat} ${d.summary || ''}`;
+              if (nonDisasterRegex.test(fullText)) return false;
+              return strictDisasterRegex.test(titleAndCat);
             })
             .map((d, idx) => ({
               ...d,
