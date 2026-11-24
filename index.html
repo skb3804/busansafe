@@ -959,9 +959,13 @@
 
     function getDisplaySummary(item) {
       if (!item) return '';
-      if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
-      if (!isGenericText(item.content, item)) return normalizeText(item.content);
-      return '';
+      const rawSummary = normalizeText(item.summary);
+      if (rawSummary && !GENERIC_TEXT_REGEX.test(rawSummary)) return rawSummary;
+      const rawContent = normalizeText(item.content);
+      if (rawContent && !GENERIC_TEXT_REGEX.test(rawContent)) return rawContent;
+      if (rawSummary) return rawSummary;
+      if (rawContent) return rawContent;
+      return `${item.district ? `부산 ${item.district} 일대 ` : ''}${item.category || '안전'} 관련 세부 현황 및 현장 안내입니다.`;
     }
 
     function getDisplayContent(item) {
