@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Btv 부산 안전 브리핑 - 재해·재난 및 사건·사고 통합</title>
+  <title>Btv 부산재난방송 - 재해·재난 및 사건·사고 통합</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter & Noto Sans KR -->
@@ -29,11 +29,11 @@
   <!-- TOP HEADER -->
   <header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800">
     <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-      <!-- Btv 로고 및 초기화면 복귀 버튼 -->
+      <!-- Btv 로고 및 초기화면 복귀 · 최신 기사 업데이트 버튼 -->
       <button
         type="button"
         id="btn-reset-home"
-        title="초기화면으로 돌아가기"
+        title="초기화면 복귀 및 최신 기사 업데이트"
         class="flex items-center space-x-3 text-left group focus:outline-none cursor-pointer"
       >
         <div class="px-2.5 h-10 rounded-xl bg-gradient-to-br from-rose-600 via-red-600 to-amber-500 p-[1.5px] shadow-lg shadow-rose-950/50 group-hover:scale-105 transition-transform">
@@ -47,7 +47,7 @@
         <div>
           <div class="flex items-center space-x-2">
             <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-white group-hover:text-rose-200 transition-colors">
-              부산 안전 브리핑
+              부산재난방송
             </h1>
             <span class="px-2 py-0.5 text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-full">
               LIVE
@@ -59,8 +59,11 @@
         </div>
       </button>
 
-      <!-- 우측 저장함 필터 버튼 -->
+      <!-- 우측 연동 상태 및 저장함 필터 버튼 -->
       <div class="flex items-center space-x-2">
+        <span id="live-sync-status" class="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/80">
+          기본 데이터
+        </span>
         <button
           type="button"
           id="btn-toggle-bookmarks"
@@ -72,30 +75,40 @@
       </div>
     </div>
 
-    <!-- NAVIGATION TABS: 메인(재해·재난) vs 별도 탭(사건·사고) -->
-    <div class="max-w-5xl mx-auto px-4 flex space-x-2 border-t border-slate-800/80 pt-2">
+    <!-- NAVIGATION TABS: 메인(재해·재난) vs 사건·사고 vs 실시간 위성영상 -->
+    <div class="max-w-5xl mx-auto px-4 flex space-x-2 border-t border-slate-800/80 pt-2 overflow-x-auto">
       <button
         type="button"
         id="tab-disaster"
-        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition bg-rose-950/40 text-rose-300 border-rose-500"
+        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap bg-rose-950/40 text-rose-300 border-rose-500"
       >
         <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
         <span>재해 · 재난 현황</span>
         <span id="disaster-tab-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-rose-600 text-white font-extrabold">
-          4
+          6
         </span>
       </button>
 
       <button
         type="button"
         id="tab-incident"
-        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
+        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
       >
         <i data-lucide="siren" class="w-4 h-4"></i>
         <span>사건 · 사고 소식</span>
         <span id="incident-tab-badge" class="ml-1 px-2 py-0.5 text-xs rounded-full bg-slate-700 text-slate-200 font-bold">
           4
         </span>
+      </button>
+
+      <button
+        type="button"
+        id="tab-satellite"
+        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
+      >
+        <i data-lucide="satellite" class="w-4 h-4"></i>
+        <span>실시간 위성영상</span>
+        <span class="ml-1 px-1.5 py-0.5 text-[10px] rounded-md bg-sky-600 text-white font-extrabold tracking-wide">LIVE</span>
       </button>
     </div>
   </header>
@@ -104,7 +117,7 @@
   <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-5 space-y-5">
     
     <!-- 검색 및 부산 16개 구·군 필터 바 -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row gap-3">
+    <section id="search-filter-bar" class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col sm:flex-row gap-3">
       <div class="relative flex-1">
         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
         <input
@@ -138,31 +151,41 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="space-y-1">
             <div class="flex items-center space-x-2">
-              <span class="px-2.5 py-0.5 text-xs font-black bg-rose-600 text-white rounded-md animate-pulse">
-                부산 재난 · 특보 현황 (11.10 ~ 11.12)
+              <span id="banner-badge-label" class="px-2.5 py-0.5 text-xs font-black bg-rose-600 text-white rounded-md animate-pulse">
+                기상청 특보 발효 중
               </span>
               <span class="text-xs font-bold text-rose-200">
-                기상청 · 부산 안전 ON 기준
+                기상청 · 부산 안전 ON 공식 기준
               </span>
             </div>
-            <h2 class="text-base sm:text-lg font-extrabold text-white leading-snug">
-              남해동부바깥먼바다 풍랑주의보 발효 중 · 육상(호우·강풍 등) 특보 없음
+            <h2 id="banner-headline-text" class="text-base sm:text-lg font-extrabold text-white leading-snug">
+              남해동부바깥먼바다 풍랑주의보 발효 중 · 부산 육상(호우·강풍 등) 특보 없음
             </h2>
           </div>
           <div class="flex items-center space-x-2 text-xs font-bold bg-slate-950/70 px-3.5 py-2.5 rounded-xl border border-rose-500/30 text-rose-200 shrink-0">
             <i data-lucide="bell" class="w-4 h-4 text-rose-400 shrink-0"></i>
-            <span>해안가 너울 및 야간 도로 통제 유의</span>
+            <span id="banner-subtext-label">해안가 너울 및 조업 선박 안전 유의</span>
           </div>
         </div>
       </div>
 
       <!-- 재해·재난 기사 리스트 헤더 -->
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-2">
         <h3 class="text-base font-bold text-slate-200 flex items-center space-x-2">
           <i data-lucide="cloud-rain" class="w-5 h-5 text-rose-400"></i>
-          <span>실시간 재해 · 재난 특보 및 기사 (<span id="disaster-count">4</span>건)</span>
+          <span>실시간 재해 · 재난 특보</span>
         </h3>
-        <span class="text-xs text-slate-400 hidden sm:inline">카드를 누르면 상세 행동요령을 확인합니다</span>
+        <div class="flex items-center space-x-2">
+          <span id="disaster-rejected-label" class="hidden text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 border border-slate-700 cursor-help"></span>
+          <button
+            type="button"
+            id="btn-header-disaster-more"
+            class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-bold transition shadow-sm"
+          >
+            <span id="header-disaster-more-label">더보기</span>
+            <i id="header-disaster-more-icon" data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
       </div>
 
       <!-- 재해·재난 카드 그리드 -->
@@ -182,28 +205,146 @@
       <div id="incident-list" class="space-y-3"></div>
     </div>
 
-    <!-- BOTTOM SECTION: 최근 3일 날짜별 통합 정리 (11월 10일 ~ 11월 12일) -->
-    <section class="pt-4 border-t border-slate-800 space-y-4">
+    <!-- TAB 3: 실시간 위성영상 (레이더 + 위성) -->
+    <div id="view-satellite" class="hidden space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h3 class="text-base font-bold text-slate-200 flex items-center space-x-2">
+          <i data-lucide="satellite-dish" class="w-5 h-5 text-sky-400"></i>
+          <span>부산 실시간 레이더 · 위성영상</span>
+        </h3>
+        <div class="flex items-center space-x-2">
+          <span id="sat-updated-label" class="text-xs text-slate-400"></span>
+          <button
+            type="button"
+            id="btn-refresh-satellite"
+            class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+          >
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>새로고침</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- 레이더 영상 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="p-1.5 rounded-lg bg-emerald-950/60 text-emerald-400"><i data-lucide="radar" class="w-4 h-4"></i></span>
+              <span class="text-sm font-extrabold text-white">레이더영상</span>
+              <span class="text-[11px] text-slate-400">강수 · 호우 에코</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button
+                type="button"
+                onclick="openSatelliteFullscreen('radar')"
+                class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 transition"
+                title="레이더영상 전체화면 보기"
+              >
+                <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                <span>전체화면</span>
+              </button>
+              <a href="https://www.weather.go.kr/w/image/radar.do" target="_blank" rel="noopener noreferrer"
+                 class="inline-flex items-center space-x-1 text-[11px] font-semibold text-sky-300 hover:text-sky-200">
+                <span>기상청 원본</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+              </a>
+            </div>
+          </div>
+          <iframe id="frame-radar" title="부산 레이더영상" loading="lazy"
+            class="w-full h-[380px] sm:h-[460px] bg-slate-950 block" frameborder="0"
+            referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+
+        <!-- 실시간 위성영상 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="p-1.5 rounded-lg bg-sky-950/60 text-sky-400"><i data-lucide="satellite" class="w-4 h-4"></i></span>
+              <span class="text-sm font-extrabold text-white">실시간 위성영상</span>
+              <span class="text-[11px] text-slate-400">구름 · 적외/가시</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button
+                type="button"
+                onclick="openSatelliteFullscreen('satellite')"
+                class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 border border-sky-500/40 transition"
+                title="실시간 위성영상 전체화면 보기"
+              >
+                <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                <span>전체화면</span>
+              </button>
+              <a href="https://www.weather.go.kr/w/image/sat.do" target="_blank" rel="noopener noreferrer"
+                 class="inline-flex items-center space-x-1 text-[11px] font-semibold text-sky-300 hover:text-sky-200">
+                <span>기상청 원본</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+              </a>
+            </div>
+          </div>
+          <iframe id="frame-satellite" title="부산 실시간 위성영상" loading="lazy"
+            class="w-full h-[380px] sm:h-[460px] bg-slate-950 block" frameborder="0"
+            referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-500 leading-relaxed">
+        영상 제공: Windy.com (레이더·위성 합성). 재생 버튼으로 최근 흐름을 볼 수 있으며, 지도는 부산 중심으로 열립니다.
+        영상이 보이지 않으면 새로고침하거나 &lsquo;기상청 원본&rsquo; 링크를 이용해 주세요.
+      </p>
+    </div>
+
+    <!-- BOTTOM SECTION 1: 공공기관별 공식 재난·안전 현황 -->
+    <section id="disaster-category-section" class="pt-4 border-t border-slate-800 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center space-x-2">
-          <div class="p-2 rounded-xl bg-slate-800 text-amber-400">
-            <i data-lucide="calendar-days" class="w-5 h-5"></i>
+          <div class="p-2 rounded-xl bg-slate-800 text-sky-400">
+            <i data-lucide="building-2" class="w-5 h-5"></i>
           </div>
           <div>
             <h3 class="text-base font-extrabold text-white">
-              최근 3일 날짜별 통합 브리핑 (11.10 ~ 11.12)
+              공공기관별 공식 재난 · 안전 현황
             </h3>
             <p class="text-xs text-slate-400">
-              최근 3일간 발생한 부산 재해·재난 및 사건·사고 소식을 일자별로 요약했습니다.
+              기상청 · 부산광역시 · 한국도로공사 등 공공기관 발표 공식 특보 및 안전 통제 자료입니다.
             </p>
           </div>
         </div>
 
-        <!-- 날짜 선택 필 버튼 -->
-        <div id="timeline-filter-buttons" class="flex flex-wrap gap-1.5"></div>
+        <!-- 공공기관 필터 필 버튼 -->
+        <div id="disaster-type-filter-buttons" class="flex flex-wrap gap-1.5"></div>
       </div>
 
-      <div id="timeline-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      <div id="disaster-category-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- BOTTOM SECTION 2: 실시간 재해 · 재난 기사 · 언론사 보도자료 (최신 4건 + 더보기 확장) -->
+    <section id="press-release-section" class="pt-4 border-t border-slate-800 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center space-x-2">
+          <div class="p-2 rounded-xl bg-slate-800 text-rose-400">
+            <i data-lucide="newspaper" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-white">
+              실시간 재해 · 재난 기사 · 언론사 보도자료
+            </h3>
+            <p class="text-xs text-slate-400">
+              기상·재난안전 관련 언론사 보도자료 및 유관기관 발표를 최신순으로 정리했습니다.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="btn-press-more"
+          class="self-start sm:self-auto inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-bold transition shadow-sm"
+        >
+          <span id="press-more-label">더보기</span>
+          <i id="press-more-icon" data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <div id="press-release-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </section>
   </main>
 
@@ -213,9 +354,9 @@
       <div class="flex items-center space-x-2">
         <span class="font-bold text-slate-200">Btv 부산 안전 브리핑</span>
         <span>·</span>
-        <span>기상청 · 부산 안전 ON · 부산소방재난본부 · 언론사 보도 기반</span>
+        <span>기상청 · 부산 안전 ON · 한국도로공사 · 부산소방재난본부 공식 자료 연동</span>
       </div>
-      <div>최근 3일(2026.11.10 ~ 11.12) 통합 브리핑</div>
+      <div id="footer-briefing-period">공공기관 공식 재난·안전 현황 브리핑</div>
     </div>
   </footer>
 
@@ -233,6 +374,47 @@
     </div>
   </div>
 
+  <!-- MODAL 3: 레이더 · 실시간 위성영상 전체화면 모달 -->
+  <div id="satellite-fullscreen-modal" class="hidden fixed inset-0 z-50 bg-slate-950 flex flex-col">
+    <div class="h-14 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+      <div class="flex items-center space-x-2.5">
+        <span id="sat-fs-icon-wrap" class="p-1.5 rounded-lg bg-sky-950/60 text-sky-400">
+          <i data-lucide="satellite" class="w-4 h-4"></i>
+        </span>
+        <div>
+          <h3 id="sat-fs-title" class="text-sm sm:text-base font-extrabold text-white">부산 실시간 위성영상</h3>
+        </div>
+        <span class="px-2 py-0.5 text-[10px] rounded-md bg-sky-600 text-white font-extrabold">FULLSCREEN</span>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <a id="sat-fs-origin-link" href="https://www.weather.go.kr/w/image/sat.do" target="_blank" rel="noopener noreferrer"
+           class="hidden sm:inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 transition">
+          <span>기상청 원본</span>
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+        </a>
+        <button
+          type="button"
+          onclick="closeSatelliteFullscreen()"
+          class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition"
+        >
+          <i data-lucide="minimize-2" class="w-4 h-4"></i>
+          <span>전체화면 닫기</span>
+        </button>
+      </div>
+    </div>
+    <div class="flex-1 w-full bg-slate-950 relative">
+      <iframe
+        id="frame-satellite-fullscreen"
+        title="부산 기상 영상 전체화면"
+        class="w-full h-full block bg-slate-950"
+        frameborder="0"
+        referrerpolicy="no-referrer-when-downgrade"
+        allowfullscreen
+      ></iframe>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION (alert 대신 커스텀 알림 메시지 박스 사용) -->
   <div id="toast-box" class="hidden fixed bottom-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-xl border border-emerald-400/50 text-xs font-bold flex items-center space-x-2">
     <i data-lucide="check-circle-2" class="w-4 h-4"></i>
@@ -240,8 +422,8 @@
   </div>
 
   <script>
-    // --- 최근 3일(2026.11.10 ~ 2026.11.12) 부산 지역 재해·재난 특보 및 안전 통제 데이터 ---
-    const DISASTER_ARTICLES = [
+    // --- 기본 내장 재해·재난 데이터 (실제 날씨·기상특보 및 재난안전 통제 보도만 엄선) ---
+    let DISASTER_ARTICLES = [
       {
         id: 'dis-1',
         type: 'disaster',
@@ -261,6 +443,22 @@
       {
         id: 'dis-2',
         type: 'disaster',
+        date: '2026-11-12',
+        dateLabel: '11월 12일 (오늘)',
+        severity: '주의',
+        category: '산불/건조예방',
+        district: '금정구 · 해운대구 · 기장군',
+        title: '부산 주요 산림 일대 가을철 산불조심기간 비상근무 가동… 입산객 화기 소지 금지',
+        summary: '부산시와 16개 구·군이 가을철 산불조심기간을 맞아 금정산·장산·백양산 등 주요 등산로 입구 감시초소를 확대 운영하고 산림 인접지 소각 행위 집중 단속에 나섰습니다.',
+        source: '부산광역시 산불방지대책본부',
+        sourceUrl: 'https://www.busan.go.kr/safety/index',
+        publishedAt: '11월 12일 08:30',
+        actionGuide: '입산 시 라이터·버너 등 인화물질 소지를 삼가고, 산림 인접 지역에서 논·밭두렁 및 쓰레기 불법 소각을 절대 하지 마시기 바랍니다.',
+        content: '부산광역시 산불방지대책본부는 맑고 일교차가 큰 가을 날씨가 이어짐에 따라 주요 산림 및 등산로에 산불감시원을 집중 배치했습니다. 입산통제구역 출입 및 산림 내 흡연·취사 행위 적발 시 관련 법령에 따라 엄중 과태료가 부과됩니다.'
+      },
+      {
+        id: 'dis-3',
+        type: 'disaster',
         date: '2026-11-11',
         dateLabel: '11월 11일 (어제)',
         severity: '안내',
@@ -275,12 +473,12 @@
         content: '부산광역시는 대형 화재 예방을 위해 피난·방화시설 유지관리 및 소방시설 폐쇄 여부를 점검하는 11월 화재안전조사 대상을 사전 공개했습니다. 아울러 경찰은 최근 고속도로 사고 증가에 따라 11월 11일부터 12월 10일까지 화물차 지정차로 위반 및 과속 집중단속을 실시합니다.'
       },
       {
-        id: 'dis-3',
+        id: 'dis-4',
         type: 'disaster',
         date: '2026-11-10',
         dateLabel: '11월 10일 (그제)',
         severity: '경계',
-        category: '도로통제/공사',
+        category: '도로통제/돌발',
         district: '사상구 · 부산진구 · 기장군',
         title: '동서고가로·황령대로 야간 차로 통제 및 부산외곽순환선 철마1터널 장애물 주의',
         summary: '10일 저녁 동서고가로(낙동램프~서부산낙동강교) 및 남해2지선(가야대로~낙동대교) 야간 도로 작업과 부산외곽순환고속도로 철마1터널 일대 장애물로 부분 차로 통제가 시행됐습니다.',
@@ -291,25 +489,205 @@
         content: '부산 안전 ON 교통돌발 정보에 따르면 11월 10일 오후부터 야간 사이 황령대로 문전교차로~황령터널 구간 1차로 통제, 동서고가로 시외곽 방향 1차로 작업 통제, 부산외곽순환선 철마1터널 기점 방향 2차로 장애물 처리 등 주요 간선도로 통제가 잇따랐습니다.'
       },
       {
-        id: 'dis-4',
+        id: 'dis-5',
+        type: 'disaster',
+        date: '2026-11-10',
+        dateLabel: '11월 10일 (그제)',
+        severity: '안내',
+        category: '기상전망/해양',
+        district: '부산 연안 · 영도구 · 해운대구',
+        title: '부산 앞바다 당분간 너울성 파도 유입 가능성… 해안 저지대 침수·안전사고 유의',
+        summary: '부산지방기상청은 남해동부먼바다 풍랑특보의 영향으로 당분간 부산 해안가에 너울에 의한 높은 물결이 백사장으로 강하게 밀려올 수 있다며 주의를 당부했습니다.',
+        source: '부산지방기상청',
+        sourceUrl: 'https://www.weather.go.kr/w/index.do',
+        publishedAt: '11월 10일 16:30',
+        actionGuide: '해안가 산책로 및 방파제 출입을 자제하고, 해안 저지대 주차 차량은 안전한 곳으로 이동하시기 바랍니다.',
+        content: '부산지방기상청 예보에 따르면 먼바다에서 형성된 너울이 해안으로 유입되면서 갯바위나 방파제를 넘는 곳이 있겠습니다. 해상 안전사고 예방을 위해 기상특보 해제 시까지 해안가 접근을 자제해야 합니다.'
+      },
+      {
+        id: 'dis-6',
+        type: 'disaster',
+        date: '2026-11-10',
+        dateLabel: '11월 10일 (그제)',
+        severity: '안내',
+        category: '기반시설/급수',
+        district: '사하구 · 강서구 일원',
+        title: '부산시 상수도사업본부, 노후 송수관로 야간 밸브 점검 및 수계 전환 안전조치 완료',
+        summary: '부산시 상수도사업본부는 동절기 단수·동파 사고 예방을 위해 사하·강서 권역 주요 배수지 유입 관로 야간 점검을 실시했으며, 전 구역 정상 급수가 유지되고 있습니다.',
+        source: '부산광역시 상수도사업본부',
+        sourceUrl: 'https://www.busan.go.kr/water/index',
+        publishedAt: '11월 10일 11:00',
+        actionGuide: '일부 고지대 세대에서 일시적 수압 변동이 있을 경우 수돗물을 잠시 흘려보낸 뒤 사용하시기 바랍니다.',
+        content: '부산시 상수도사업본부는 겨울철 한파 대비 급수시설 특별점검의 일환으로 주요 관로 및 가압장 설비 점검을 마쳤으며, 시민 불편 없이 정상 수압으로 수돗물이 공급되고 있다고 밝혔습니다.'
+      }
+    ];
+
+    // --- 실시간 재해·재난 기사 및 언론사 보도자료 기본 데이터 (최신순) ---
+    let PRESS_RELEASE_ARTICLES = [
+      {
+        id: 'pr-1',
         type: 'disaster',
         date: '2026-11-12',
         dateLabel: '11월 12일 (오늘)',
         severity: '주의',
-        category: '산불/건조예방',
-        district: '금정구 · 해운대구 · 기장군',
-        title: '부산 주요 산림 일대 가을철 산불조심기간 비상근무 가동… 입산객 화기 소지 금지',
-        summary: '부산시와 16개 구·군이 가을철 산불조심기간을 맞아 금정산·장산·백양산 등 주요 등산로 입구 감시초소를 확대 운영하고 산림 인접지 소각 행위 집중 단속에 나섰습니다.',
-        source: '부산광역시 산불방지대책본부',
-        sourceUrl: 'https://www.busan.go.kr/safety/index',
-        publishedAt: '11월 12일 08:30',
-        actionGuide: '입산 시 라이터·버너 등 인화물질 소지를 삼가고, 산림 인접 지역에서 논·밭두렁 및 쓰레기 불법 소각을 절대 하지 마시기 바랍니다.',
-        content: '부산광역시 산불방지대책본부는 맑고 일교차가 큰 가을 날씨가 이어짐에 따라 주요 산림 및 등산로에 산불감시원을 집중 배치했습니다. 입산통제구역 출입 및 산림 내 흡연·취사 행위 적발 시 관련 법령에 따라 엄중 과태료가 부과됩니다.'
+        category: '언론보도 · 해상특보',
+        district: '부산 앞바다 · 남해동부',
+        title: '[보도] 남해동부바깥먼바다 풍랑주의보 사흘째… 부산 해경, 연안 안전순찰 강화',
+        summary: '남해동부바깥먼바다에 풍랑주의보가 이어지면서 부산해양경찰서가 방파제와 갯바위 등 연안 위험구역 순찰을 강화하고 조업 어선에 안전운항을 당부했습니다.',
+        source: '부산일보 · 부산해양경찰서',
+        sourceUrl: 'https://www.busan.com',
+        publishedAt: '11월 12일 10:15',
+        actionGuide: '기상특보 발효 중에는 방파제 및 갯바위 출입을 자제하고 구명조끼 착용 등 해상 안전수칙을 준수해 주세요.',
+        content: '부산해양경찰서와 기상청 발표에 따르면 남해동부바깥먼바다에 초속 10~16m의 강한 바람과 최고 3.5m의 높은 물결이 일고 있습니다. 해경은 파출소별 연안 순찰을 강화해 낚시객과 행락객의 위험구역 출입을 통제하고 있습니다.'
+      },
+      {
+        id: 'pr-2',
+        type: 'disaster',
+        date: '2026-11-12',
+        dateLabel: '11월 12일 (오늘)',
+        severity: '안내',
+        category: '보도자료 · 재난대응',
+        district: '부산 전역',
+        title: '[보도자료] 부산시, 겨울철 대설·한파 대비 재난안전대책본부 사전 점검회의 개최',
+        summary: '부산시가 본격적인 겨울철 자연재난 대책기간을 앞두고 제설장비 전진 배치, 한파 쉼터 운영, 취약계층 보호 대책을 점검하는 관계기관 합동회의를 열었습니다.',
+        source: '부산광역시 시민안전실',
+        sourceUrl: 'https://www.busan.go.kr/nbtnews',
+        publishedAt: '11월 12일 09:30',
+        actionGuide: '겨울철 한파·대설 특보 발효 시 내 집 앞 눈 치우기 및 수도계량기 보온 조치에 적극 동참해 주시기 바랍니다.',
+        content: '부산광역시 시민안전실은 16개 구·군 및 부산경찰청, 부산소방재난본부, 기상청 등 유관기관과 함께 겨울철 자연재난 대비태세 점검회의를 개최하고 결빙 취약구간 자동염수분사장치 가동 상태를 확인했습니다.'
+      },
+      {
+        id: 'pr-3',
+        type: 'disaster',
+        date: '2026-11-11',
+        dateLabel: '11월 11일 (어제)',
+        severity: '안내',
+        category: '언론보도 · 소방안전',
+        district: '부산 전역 · 전통시장',
+        title: '[보도] 부산소방재난본부, 전통시장·노후 주거밀집지역 겨울철 화재예방 특별대책 추진',
+        summary: '부산소방재난본부가 난방기기 사용이 늘어나는 동절기를 맞아 관내 전통시장과 노후 공동주택을 대상으로 전기·가스 안전점검 및 단독경보형 감지기 보급을 확대합니다.',
+        source: '국제신문 · 부산소방재난본부',
+        sourceUrl: 'https://www.kookje.co.kr',
+        publishedAt: '11월 11일 16:40',
+        actionGuide: '문어발식 콘센트 사용을 자제하고 외출 시 전열기구 전원을 반드시 차단해 화재를 예방하시기 바랍니다.',
+        content: '부산소방재난본부는 최근 주거시설 화재에서 단독경보형 감지기가 인명피해를 막는 데 큰 역할을 한 점을 강조하며, 취약계층 가구 주택용 소방시설 무상 보급과 전통시장 야간 순찰을 강화할 계획입니다.'
+      },
+      {
+        id: 'pr-4',
+        type: 'disaster',
+        date: '2026-11-11',
+        dateLabel: '11월 11일 (어제)',
+        severity: '경계',
+        category: '언론보도 · 교통안전',
+        district: '경부선 · 남해선 · 외곽순환선',
+        title: '[보도] 부산권 고속도로 화물차 법규위반·과속 집중단속… 암행순찰차 투입',
+        summary: '경찰과 한국도로공사가 대형 교통사고 예방을 위해 경부고속도로와 남해고속도로, 부산외곽순환고속도로 주요 구간에서 화물차 지정차로 위반과 과속 집중단속에 나섰습니다.',
+        source: '연합뉴스 · 한국도로공사',
+        sourceUrl: 'https://www.yna.co.kr',
+        publishedAt: '11월 11일 11:20',
+        actionGuide: '고속도로 주행 시 화물차와 충분한 안전거리를 확보하고 졸음운전 예방을 위해 졸음쉼터를 이용해 주세요.',
+        content: '부산경찰청 고속도로순찰대와 한국도로공사 부산경남본부는 11일부터 한 달간 암행순찰차와 드론을 투입해 화물차 정비불량, 적재불량, 지정차로 위반 행위를 집중 단속한다고 밝혔습니다.'
+      },
+      {
+        id: 'pr-5',
+        type: 'disaster',
+        date: '2026-11-10',
+        dateLabel: '11월 10일 (그제)',
+        severity: '안내',
+        category: '보도자료 · 산불예방',
+        district: '금정구 · 기장군 · 사상구',
+        title: '[보도자료] 부산시, 가을철 산불조심기간 산불방지대책본부 본격 가동',
+        summary: '부산시가 건조한 가을 날씨에 따른 산불 발생을 원천 차단하기 위해 시 본청과 16개 구·군에 산불방지대책본부를 설치하고 산불진화헬기 대기 태세에 돌입했습니다.',
+        source: '부산광역시 푸른도시국',
+        sourceUrl: 'https://www.busan.go.kr/nbtnews',
+        publishedAt: '11월 10일 15:00',
+        actionGuide: '산림 인접 100m 이내 지역에서 논·밭두렁 태우기 및 쓰레기 소각 행위는 엄격히 금지됩니다.',
+        content: '부산광역시는 입산객이 증가하는 가을철을 맞아 주요 등산로 입구에서 인화물질 수거함을 운영하고, 무인감시카메라와 산불감시원을 활용해 실시간 감시체계를 유지합니다.'
+      },
+      {
+        id: 'pr-6',
+        type: 'disaster',
+        date: '2026-11-10',
+        dateLabel: '11월 10일 (그제)',
+        severity: '안내',
+        category: '언론보도 · 시설안전',
+        district: '동구 · 중구 · 영도구',
+        title: '[보도] 부산항만공사, 항만 건설현장·부두 시설물 동절기 대비 합동 안전점검',
+        summary: '부산항만공사가 북항 재개발 구역 및 주요 부두 시설물을 대상으로 강풍·풍랑 대비 계류시설 결속 상태와 건설현장 안전난간 등을 일제 점검했습니다.',
+        source: 'KNN · 부산항만공사',
+        sourceUrl: 'https://news.knn.co.kr',
+        publishedAt: '11월 10일 10:10',
+        actionGuide: '항만 및 부두 인근 통행 시 강풍에 의한 낙하물과 작업 구간 안전통제 안내에 협조해 주시기 바랍니다.',
+        content: '부산항만공사는 해상 기상 악화와 동절기 안전사고에 대비해 항만 하역장비 고정 상태와 배수로 정비 현황을 점검하고, 비상연락망 정비를 완료했다고 전했습니다.'
+      }
+    ];
+
+    // --- 공공기관별 공식 자료 상시 현황 데이터 (기상청 / 부산시·안전ON / 도로공사·소방) ---
+    const PUBLIC_INSTITUTION_GROUPS = [
+      {
+        key: 'KMA',
+        agencyName: '기상청 · 방재기상',
+        badgeText: '기상특보 · 해상예보',
+        badgeClass: 'bg-sky-600/90 text-white',
+        borderClass: 'border-sky-500/40',
+        headerTextClass: 'text-sky-300',
+        portalName: '기상청 날씨누리 특보',
+        portalUrl: 'https://www.weather.go.kr/w/weather/warning/status.do',
+        officialSummary: '남해동부바깥먼바다 풍랑주의보 발효 중 · 부산 육상(호우·강풍·건조·한파) 특보 없음',
+        defaultItems: [
+          {
+            id: 'pub-kma-1',
+            source: '기상청',
+            district: '남해동부바깥먼바다',
+            title: '남해동부바깥먼바다 풍랑주의보 발효 지속 (파고 1.5~3.5m)',
+            publishedAt: '기상청 공식 발표'
+          }
+        ]
+      },
+      {
+        key: 'BUSAN_CITY',
+        agencyName: '부산광역시 · 부산 안전 ON',
+        badgeText: '재난안전 · 시정통제',
+        badgeClass: 'bg-rose-600/90 text-white',
+        borderClass: 'border-rose-500/40',
+        headerTextClass: 'text-rose-300',
+        portalName: '부산 안전 ON 포털',
+        portalUrl: 'https://www.busan.go.kr/safety/index',
+        officialSummary: '가을철 산불조심기간 비상근무 가동 · 11월 다중이용시설 화재안전조사 대상 공개',
+        defaultItems: [
+          {
+            id: 'pub-city-1',
+            source: '부산광역시',
+            district: '부산 16개 구·군',
+            title: '가을철 산불조심기간 주요 등산로 감시초소 및 화기 소지 단속 운영',
+            publishedAt: '부산시 재난안전대책본부'
+          }
+        ]
+      },
+      {
+        key: 'ROAD_FIRE',
+        agencyName: '한국도로공사 · 소방재난본부',
+        badgeText: '도로통제 · 119안전',
+        badgeClass: 'bg-amber-500 text-slate-950',
+        borderClass: 'border-amber-500/40',
+        headerTextClass: 'text-amber-300',
+        portalName: '로드플러스 교통정보',
+        portalUrl: 'https://www.roadplus.co.kr',
+        officialSummary: '동서고가로·황령대로 야간 작업 차로 통제 안내 · 고속도로 화물차 집중단속 시행',
+        defaultItems: [
+          {
+            id: 'pub-road-1',
+            source: '한국도로공사 · 부산 안전 ON',
+            district: '사상구 · 부산진구 · 기장군',
+            title: '동서고가로·황령대로 야간 차로 부분 통제 및 외곽순환선 터널 안전관리',
+            publishedAt: '도로공사 교통돌발'
+          }
+        ]
       }
     ];
 
     // --- 최근 3일(2026.11.10 ~ 2026.11.12) 부산 지역 사건·사고 기사 데이터 ---
-    const INCIDENT_ARTICLES = [
+    let INCIDENT_ARTICLES = [
       {
         id: 'inc-1',
         type: 'incident',
@@ -372,27 +750,29 @@
       }
     ];
 
-    const RECENT_THREE_DAYS = [
-      { date: '2026-11-12', label: '11월 12일 (목 · 오늘)' },
-      { date: '2026-11-11', label: '11월 11일 (수 · 어제)' },
-      { date: '2026-11-10', label: '11월 10일 (화 · 그제)' }
-    ];
-
     const BUSAN_DISTRICTS = [
       '전체 구·군', '중구', '서구', '동구', '영도구', '부산진구', '동래구',
       '남구', '북구', '해운대구', '사하구', '금정구', '강서구', '연제구', '수영구', '사상구', '기장군'
     ];
 
     // 애플리케이션 상태 관리
+    const INITIAL_DISASTER_LIMIT = 4;
+    const INITIAL_PRESS_LIMIT = 4;
     const state = {
       activeTab: 'disaster',
       selectedDistrict: '전체 구·군',
       searchQuery: '',
       bookmarkedIds: [],
       showBookmarksOnly: false,
-      selectedTimelineDate: 'ALL',
+      selectedDisasterCategory: 'ALL',
       selectedArticle: null,
-      draftArticleTarget: null
+      draftArticleTarget: null,
+      lastManualFetchTime: 0,
+      isDisasterExpanded: false,
+      isPressExpanded: false,
+      rejectedDisasters: [],
+      serverBannerHeadline: '',
+      serverBannerSubtext: ''
     };
 
     // 유틸리티: HTML 이스케이프
@@ -410,6 +790,7 @@
     function showToast(msg) {
       const box = document.getElementById('toast-box');
       const msgEl = document.getElementById('toast-message');
+      if (!box || !msgEl) return;
       msgEl.textContent = msg;
       box.classList.remove('hidden');
       clearTimeout(toastTimer);
@@ -420,7 +801,141 @@
 
     // 기사 검색 유틸리티
     function findArticleById(id) {
-      return [...DISASTER_ARTICLES, ...INCIDENT_ARTICLES].find((a) => a.id === id) || null;
+      return [...DISASTER_ARTICLES, ...PRESS_RELEASE_ARTICLES, ...INCIDENT_ARTICLES].find((a) => a.id === id) || null;
+    }
+
+    // --- 텍스트 정리 및 상투 문구 필터 ---
+    const GENERIC_TEXT_REGEX = /(보도된\s*재난[·ㆍ]?\s*안전\s*관련\s*주요\s*소식|안전\s*안내와\s*현장\s*상황을\s*확인하시기\s*바랍니다|관계\s*당국의\s*안전\s*안내)/;
+
+    function normalizeText(t) {
+      return String(t || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function isGenericText(text, item) {
+      const t = normalizeText(text);
+      if (!t) return true;
+      if (GENERIC_TEXT_REGEX.test(t)) return true;
+      const others = [...DISASTER_ARTICLES, ...PRESS_RELEASE_ARTICLES, ...INCIDENT_ARTICLES].filter(
+        (a) => a !== item && a.id !== (item && item.id)
+      );
+      return others.some((a) => normalizeText(a.summary) === t || normalizeText(a.content) === t);
+    }
+
+    function getDisplaySummary(item) {
+      if (!item) return '';
+      if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
+      if (!isGenericText(item.content, item)) return normalizeText(item.content);
+      return '';
+    }
+
+    function getDisplayContent(item) {
+      if (!item) return '';
+      if (!isGenericText(item.content, item)) return normalizeText(item.content);
+      if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
+      return '기사 상세 내용이 제공되지 않았습니다. 출처 링크에서 원문을 확인해 주세요.';
+    }
+
+    // --- 기존 미디어(방송·언론사 보도국 데스크) 기준 분류 및 특보 선별 유틸리티 ---
+    function classifyMediaDeskArticle(item) {
+      if (!item) return { desk: 'exclude', reason: '데이터 없음' };
+      const category = String(item.category || '');
+      const title = String(item.title || '');
+      const summary = String(item.summary || '');
+      const fullText = `${category} ${title} ${summary}`;
+      const titleCat = `${category} ${title}`;
+
+      const hasAviationDisaster = /(추락|불시착|동체착륙|기체결함|비상착륙|엔진화재|활주로 이탈|충돌)/.test(titleCat);
+      const nonNewsRegex = /(진에어|에어부산|대한항공|아시아나|제주항공|티웨이|이스타|항공편|취항|노선 확대|증편|특가|프로모션|할인|혁신기업|제조업|스타트업|벤처|투자유치|수출|무역|일자리|채용|축제|박람회|전시회|관광|문화행사|공연|MOU|협약|지원사업|공모|분양|어워드|수상|포럼|세미나|개최|육성|산업단지 조성|예산안|시의회|국비 확보|캠페인|설명회|간담회|업무협약|실적|영업이익|매출|주가|신제품|출시)/;
+      const excl = titleCat.match(nonNewsRegex);
+      if (!hasAviationDisaster && excl) {
+        return { desk: 'exclude', reason: `비재난 보도 제외: "${excl[0]}"` };
+      }
+
+      const incidentDeskRegex = /(음주운전|추돌|편의점 덮쳐|교통사고|차량 돌진|불법촬영|항소심|부산고법|법원|판결|징역|구속|입건|검거|절도|사기|폭행|살인|산업재해|추락사|끼임|감전|중대재해|다가구주택.*불|주택 지하층.*불|상가.*불|차량 화재)/;
+      const isLargeScaleDisaster = /(대형화재|산불|다중이용시설|대피령|재난대책본부|기상특보|주의보|경보|태풍|호우|풍랑|강풍|대설|한파|폭염|건조|지진|침수|범람|붕괴|유해물질|누출|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|싱크홀|땅꺼짐|낙석)/;
+
+      if (incidentDeskRegex.test(titleCat) && !isLargeScaleDisaster.test(titleCat)) {
+        let incCat = '사건/치안';
+        if (/(화재|불)/.test(titleCat)) incCat = '화재';
+        else if (/(교통|음주운전|추돌|돌진)/.test(titleCat)) incCat = '교통사고';
+        else if (/(산업재해|중대재해|추락|끼임)/.test(titleCat)) incCat = '산업재해';
+        else if (/(법원|고법|판결|항소|징역|불법촬영)/.test(titleCat)) incCat = '법원/치안';
+        return { desk: 'incident', reason: '사회부 사건·사고 데스크 자동 이관', mappedCategory: incCat };
+      }
+
+      const disasterDeskRegex = /(날씨|기상|예보|특보|주의보|경보|태풍|호우|폭우|강풍|풍랑|대설|폭설|한파|폭염|건조|황사|미세먼지|지진|해일|너울|산사태|침수|범람|홍수|가뭄|산불|화재안전|화재예방|폭발|붕괴|누출|유출|사회재난|자연재난|재난|재해|대피|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|낙석|싱크홀|땅꺼짐|감염병|방역)/;
+      if (disasterDeskRegex.test(fullText)) {
+        return { desk: 'disaster', reason: '재난안전 데스크 승인' };
+      }
+
+      return { desk: 'exclude', reason: '재해·재난 핵심 키워드 미충족' };
+    }
+
+    function isStrictWeatherOrDisasterArticle(item) {
+      return classifyMediaDeskArticle(item).desk === 'disaster';
+    }
+
+    function extractOfficialWeatherAdvisory(disasterList, fallbackHeadline, fallbackSubtext) {
+      const advisoryRegex = /((?:남해동부|부산앞바다|부산\s*전역|부산\s*내륙|부산\s*해안|부산|울산|경남)[^\s,·…]{0,14})?\s*(태풍|호우|대설|강풍|풍랑|한파|폭염|건조|황사|지진해일)\s*(주의보|경보)/g;
+      const foundMap = new Map();
+
+      (disasterList || []).forEach((item) => {
+        const text = `${item.title || ''} ${item.summary || ''}`;
+        let match;
+        while ((match = advisoryRegex.exec(text)) !== null) {
+          const region = (match[1] || '부산 권역').trim();
+          const type = match[2];
+          const level = match[3];
+          if (/없음|해제/.test(text.slice(match.index, match.index + 35))) continue;
+          const key = `${type}${level}`;
+          if (!foundMap.has(key)) {
+            foundMap.set(key, { region, type, level, label: `${region} ${type}${level}` });
+          }
+        }
+      });
+
+      const advisories = Array.from(foundMap.values());
+      if (advisories.length > 0) {
+        const hasWarning = advisories.some((a) => a.level === '경보');
+        const mainLabels = advisories.map((a) => `${a.label} 발효 중`).join(' · ');
+        const isOnlyMarine = advisories.every((a) => a.type === '풍랑');
+        const headline = isOnlyMarine
+          ? `${mainLabels} · 부산 육상(호우·강풍·건조 등) 특보 없음`
+          : mainLabels;
+        const subtext = isOnlyMarine
+          ? '해안가 너울성 파도 및 조업·항해 선박 안전 유의'
+          : '기상특보 발효 구역 야외활동 자제 및 재난안전 수칙 준수';
+        return {
+          badge: hasWarning ? '기상청 경보 발효 중' : '기상청 특보 발효 중',
+          headline,
+          subtext
+        };
+      }
+
+      if (fallbackHeadline && /(주의보|경보|특보)/.test(fallbackHeadline)) {
+        return {
+          badge: '기상청 특보 현황',
+          headline: fallbackHeadline,
+          subtext: fallbackSubtext || '기상청 및 부산 안전 ON 실시간 발표 기준'
+        };
+      }
+
+      return {
+        badge: '부산 기상 · 재난 현황',
+        headline: '부산 육상 및 앞바다 현재 발효된 기상특보 없음 · 주요 재난·통제 현황 안내',
+        subtext: fallbackSubtext || '기상청 · 부산 안전 ON 실시간 모니터링 중'
+      };
+    }
+
+    function getInstitutionKeyForArticle(item) {
+      const src = `${item.source || ''} ${item.category || ''} ${item.title || ''}`;
+      if (/(기상청|풍랑|태풍|호우|강풍|대설|한파|폭염|건조|황사|지진|해일|너울|해양)/.test(src)) {
+        return 'KMA';
+      }
+      if (/(도로공사|로드플러스|고속도로|동서고가로|황령대로|터널|차로 통제|도로통제|소방|화재|119)/.test(src)) {
+        return 'ROAD_FIRE';
+      }
+      return 'BUSAN_CITY';
     }
 
     // 위험 등급별 스타일 반환
@@ -453,53 +968,25 @@
       }
     }
 
-    // 30초 단신 기사 및 연계기사 아이템 생성 (인용구 없이 핵심 사실 기반 자체 기사 작성)
+    // 30초 단신 기사 및 연계기사 아이템 생성
     function generateShortNewsDraft(article) {
       if (!article) return null;
 
-      let shortScript = '';
-
-      switch (article.id) {
-        case 'dis-1':
-          shortScript = `남해동부바깥먼바다에 풍랑주의보가 발효되면서 부산 앞바다에도 높은 물결이 일고 있습니다. 부산 내륙 지역은 별다른 기상특보 없이 맑은 날씨를 보이고 있지만, 해안가에는 너울성 파도가 유입될 가능성이 큽니다. 항해나 조업에 나서는 선박은 기상 상황을 수시로 확인하고, 시민들도 방파제나 갯바위 출입을 자제하는 등 해안가 안전사고에 각별히 유의하셔야겠습니다.`;
-          break;
-        case 'dis-2':
-          shortScript = `겨울철을 앞두고 부산 시내 다중이용시설에 대한 화재안전조사가 진행됩니다. 이번 점검에서는 비상구 폐쇄 여부와 소방시설 정상 작동 상태를 집중적으로 살핍니다. 이와 함께 경부선과 남해선 등 부산권 주요 고속도로에서는 한 달 동안 화물차 지정차로 위반과 과속 행위에 대한 집중단속이 이어져 운전자들의 안전운행이 요구됩니다.`;
-          break;
-        case 'dis-3':
-          shortScript = `부산 도심 주요 간선도로와 외곽순환고속도로 곳곳에서 도로 작업과 장애물 처리로 인한 부분 통제가 잇따르고 있습니다. 동서고가로 시외곽 방향과 황령대로 황령터널 방면은 야간 시간대 차로가 축소 운영되며, 부산외곽순환선 철마1터널 일대에서도 도로 정비가 진행됐습니다. 해당 구간을 지나는 차량은 감속 운행하고 우회 도로를 확인하시기 바랍니다.`;
-          break;
-        case 'dis-4':
-          shortScript = `맑고 일교차가 큰 가을 날씨가 이어지면서 부산 시내 주요 산림 일대에 산불 예방 비상근무가 가동됐습니다. 금정산과 장산 등 주요 등산로 입구에는 산불감시원이 집중 배치됐으며, 산림 인접 지역의 불법 소각 행위에 대한 단속도 한층 강화됩니다. 등산객들은 입산 시 화기 소지를 삼가고 산불 예방 수칙을 철저히 지켜주셔야겠습니다.`;
-          break;
-        case 'inc-1':
-          shortScript = `어제 저녁 부산 북구의 한 다가구주택 지하층에서 불이 나 소방대에 의해 진화됐습니다. 화재 당시 건물 안에 있던 주민 6명은 단독경보형 화재경보기 소리와 연기를 감지하고 신속히 건물 밖으로 대피해 다행히 인명피해는 발생하지 않았습니다. 소방당국은 주방 내 소형 가전제품에서 전기적 요인으로 불이 시작된 것으로 보고 정확한 화재 원인을 조사하고 있습니다.`;
-          break;
-        case 'inc-2':
-          shortScript = `어제 부산 도심 도로에서 음주운전 차량이 앞서가던 승용차를 들이받았습니다. 이 추돌 충격으로 밀려난 승용차가 도로변 편의점 유리창을 뚫고 돌진하면서, 운전자와 매장 내부에 있던 시민 등 1명이 중상을 입고 6명이 경상을 입어 병원으로 옮겨졌습니다. 경찰은 음주운전자를 입건해 정확한 사고 경위를 조사하고 있습니다.`;
-          break;
-        case 'inc-3':
-          shortScript = `직장 내 여자화장실에 불법촬영 카메라를 설치해 해임된 전직 우체국 사무장이 징계에 불복해 소송을 냈지만 항소심에서도 패소했습니다. 부산고등법원은 전직 사무장 A씨가 낸 해임처분 취소 소송 항소심에서 1심과 마찬가지로 원고 청구를 기각했습니다. 재판부는 공직 기강 확립과 비위 행위의 중대성을 고려할 때 해임 처분이 정당하다고 판시했습니다.`;
-          break;
-        case 'inc-4':
-          shortScript = `지난 10일 오전 8시 40분쯤 부산 강서구 미음동의 한 금속제품 제조 공장에서 1톤 무게의 철판이 떨어져 40대 근로자가 숨졌습니다. 숨진 근로자는 공장 내부에서 용접 작업을 진행하던 중 머리 위로 낙하한 철판에 변을 당한 것으로 파악됐습니다. 경찰과 노동당국은 현장 작업자들의 안전수칙 준수 여부와 정확한 사고 원인을 조사하고 있습니다.`;
-          break;
-        default: {
-          const cleanTitle = article.title.replace(/…/g, ', ');
-          shortScript = `${article.district} 일대에서 ${cleanTitle} 소식이 전해졌습니다. ${article.summary} 관계 당국은 현장 안전 관리와 함께 정확한 경위를 파악하고 있으며, 시민들의 각별한 주의를 당부했습니다.`;
-          break;
-        }
-      }
+      const isDisaster = article.type === 'disaster' || Boolean(article.severity);
+      const cleanTitle = String(article.title || '').replace(/^\[[^\]]+\]\s*/, '').replace(/…/g, ', ');
+      const shortScript = isDisaster
+        ? `[부산 ${article.district} 안전 단신]\n${article.source}에 따르면 ${cleanTitle} 상황이 이어지고 있습니다. ${getDisplaySummary(article)} 관계 당국은 ${article.actionGuide || '현장 안전수칙 준수를 당부했습니다.'} 지금까지 부산 안전 브리핑에서 전해드렸습니다.`
+        : `[부산 ${article.district} 사건·사고 단신]\n${article.publishedAt}경 부산 ${article.district} 일대에서 ${cleanTitle} 사고가 발생했습니다. ${getDisplaySummary(article)} 현재 ${article.status || '조사 진행 중'} 단계로, 관계 당국이 정확한 경위를 파악하고 있습니다.`;
 
       const charCount = shortScript.replace(/\s+/g, '').length;
-      const estimatedSeconds = Math.min(32, Math.max(24, Math.round(charCount / 6.2)));
+      const estimatedSeconds = Math.min(32, Math.max(20, Math.round(charCount / 6.2)));
 
       let followUpItems = [];
       if (article.category.includes('해상') || article.category.includes('풍랑')) {
         followUpItems = [
           {
             tag: '현장 르포',
-            title: '풍랑주의보 발효 사흘째, 부산 연안 여객선·어선 조업 통제 및 수산시장 물가 영향 점검',
+            title: '풍랑주의보 발효 지속, 부산 연안 여객선·어선 조업 통제 및 수산시장 물가 영향 점검',
             point: '남항·자갈치 인근 선박 피항 현황 및 해안가 너울성 파도 안전펜스 점검'
           },
           {
@@ -531,7 +1018,7 @@
             point: '부산 시내 주요 교차로 주변 안전펜스 강도 및 설치 기준 점검'
           }
         ];
-      } else if (article.category.includes('화재')) {
+      } else if (article.category.includes('화재') || article.category.includes('소방')) {
         followUpItems = [
           {
             tag: '사례 분석',
@@ -576,7 +1063,7 @@
           },
           {
             tag: '유사 사례',
-            title: '최근 부산 지역 유사 사건·사고 발생 추이 및 제도적 보완 과제',
+            title: '최근 부산 지역 유사 재난·안전 사례 추이 및 제도적 보완 과제',
             point: '최근 3년간 부산 시내 동종 사례 통계 비교'
           },
           {
@@ -605,7 +1092,7 @@
       }
     }
 
-    // 기사 전문 모달 열기
+    // 기사 전문 모달 열기 (상세 모달에는 시민 행동 요령 표시)
     function openArticleModal(id) {
       const article = findArticleById(id);
       if (!article) return;
@@ -655,8 +1142,8 @@
             article.actionGuide
               ? `<div class="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40">
                   <div class="text-xs font-extrabold text-rose-300 mb-1 flex items-center space-x-1">
-                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-                    <span>재난 행동 요령</span>
+                    <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                    <span>시민 행동 요령</span>
                   </div>
                   <p class="text-sm text-rose-100 font-medium">${escapeHtml(article.actionGuide)}</p>
                 </div>`
@@ -664,7 +1151,7 @@
           }
 
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed">
-            ${escapeHtml(article.content)}
+            ${escapeHtml(getDisplayContent(article))}
           </p>
 
           <div class="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80">
@@ -732,6 +1219,50 @@
       const box = document.getElementById('draft-modal-box');
       const draftData = generateShortNewsDraft(article);
 
+      const isIncident = article.type === 'incident';
+      const videoUrl = isIncident ? (article.videoUrl || article.video || '') : '';
+      const imageUrl = isIncident ? (article.imageUrl || article.image || article.thumbnail || '') : '';
+      const mediaCaption = article.mediaCaption || `${article.source} 제공 자료`;
+
+      let mediaPreviewHtml = '';
+      if (videoUrl) {
+        mediaPreviewHtml = `
+          <div class="rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
+            <video
+              src="${escapeHtml(videoUrl)}"
+              controls
+              playsinline
+              class="w-full max-h-64 object-cover bg-black"
+            ></video>
+            <div class="px-3 py-1.5 bg-slate-900/90 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+              <span class="flex items-center space-x-1 text-indigo-300 font-semibold">
+                <i data-lucide="video" class="w-3.5 h-3.5"></i>
+                <span>제공 영상 자료</span>
+              </span>
+              <span>${escapeHtml(mediaCaption)}</span>
+            </div>
+          </div>
+        `;
+      } else if (imageUrl) {
+        mediaPreviewHtml = `
+          <div class="rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
+            <img
+              src="${escapeHtml(imageUrl)}"
+              alt="${escapeHtml(article.title)}"
+              onerror="this.closest('div').remove()"
+              class="w-full max-h-64 object-cover"
+            />
+            <div class="px-3 py-1.5 bg-slate-900/90 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+              <span class="flex items-center space-x-1 text-indigo-300 font-semibold">
+                <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                <span>제공 사진 자료</span>
+              </span>
+              <span>${escapeHtml(mediaCaption)}</span>
+            </div>
+          </div>
+        `;
+      }
+
       box.innerHTML = `
         <div class="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between sticky top-0 z-10">
           <div class="flex items-center space-x-2">
@@ -754,8 +1285,7 @@
         </div>
 
         <div class="p-5 space-y-5">
-          <!-- 1. 30초 이내 단신 기사 원고 -->
-          <div class="space-y-2">
+          <div class="space-y-2.5">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <span class="text-xs font-extrabold text-emerald-400 flex items-center space-x-1.5">
                 <i data-lucide="file-edit" class="w-4 h-4"></i>
@@ -771,12 +1301,13 @@
               </div>
             </div>
 
+            ${mediaPreviewHtml}
+
             <div class="p-4 rounded-xl bg-slate-950 border border-emerald-500/30 text-sm sm:text-base text-slate-100 leading-relaxed whitespace-pre-line font-medium">
               ${escapeHtml(draftData.shortScript)}
             </div>
           </div>
 
-          <!-- 2. 하단: 추후 연계기사 아이템 정리 -->
           <div class="pt-4 border-t border-slate-800 space-y-3">
             <div class="flex items-center justify-between">
               <h4 class="text-sm font-extrabold text-amber-300 flex items-center space-x-1.5">
@@ -808,7 +1339,6 @@
             </div>
           </div>
 
-          <!-- 하단 액션 버튼 -->
           <div class="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
             <div class="flex flex-wrap items-center gap-2">
               <button
@@ -850,7 +1380,6 @@
       document.getElementById('draft-modal').classList.add('hidden');
     }
 
-    // 클립보드 복사 (iFrame 호환 execCommand 방식)
     function copyDraftText() {
       if (!state.draftArticleTarget) return;
       const draftData = generateShortNewsDraft(state.draftArticleTarget);
@@ -873,7 +1402,6 @@
       document.body.removeChild(textarea);
     }
 
-    // MS Word(.doc) 파일 다운로드
     function downloadDraftWord() {
       const article = state.draftArticleTarget;
       if (!article) return;
@@ -960,6 +1488,100 @@
       });
     }
 
+    // --- 실시간 위성영상 탭: 레이더 / 위성 임베드 (부산 중심) ---
+    const BUSAN_LAT = 35.18;
+    const BUSAN_LON = 129.07;
+    let satLoadedOnce = false;
+    let satRefreshTimer = null;
+
+    function buildWindyUrl(overlay) {
+      const q = new URLSearchParams({
+        lat: BUSAN_LAT,
+        lon: BUSAN_LON,
+        detailLat: BUSAN_LAT,
+        detailLon: BUSAN_LON,
+        zoom: 7,
+        level: 'surface',
+        overlay: overlay,
+        product: overlay,
+        menu: '',
+        message: 'true',
+        marker: 'true',
+        calendar: 'now',
+        type: 'map',
+        location: 'coordinates',
+        detail: '',
+        metricWind: 'm/s',
+        metricTemp: '°C',
+        radarRange: '-1'
+      });
+      return 'https://embed.windy.com/embed2.html?' + q.toString();
+    }
+
+    function loadSatelliteFrames(force) {
+      if (!satLoadedOnce || force) {
+        const radarFrame = document.getElementById('frame-radar');
+        const satFrame = document.getElementById('frame-satellite');
+        if (radarFrame) radarFrame.src = buildWindyUrl('radar');
+        if (satFrame) satFrame.src = buildWindyUrl('satellite');
+        satLoadedOnce = true;
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const label = document.getElementById('sat-updated-label');
+        if (label) label.textContent = hh + ':' + mm + ' 갱신';
+      }
+      if (!satRefreshTimer) {
+        satRefreshTimer = setInterval(() => loadSatelliteFrames(true), 10 * 60 * 1000);
+      }
+    }
+
+    function stopSatelliteAutoRefresh() {
+      if (satRefreshTimer) {
+        clearInterval(satRefreshTimer);
+        satRefreshTimer = null;
+      }
+    }
+
+    function openSatelliteFullscreen(type) {
+      const modal = document.getElementById('satellite-fullscreen-modal');
+      const frame = document.getElementById('frame-satellite-fullscreen');
+      const titleEl = document.getElementById('sat-fs-title');
+      const iconWrap = document.getElementById('sat-fs-icon-wrap');
+      const originLink = document.getElementById('sat-fs-origin-link');
+      if (!modal || !frame) return;
+
+      const isRadar = type === 'radar';
+      titleEl.textContent = isRadar
+        ? '부산 레이더영상 (강수 · 호우 에코)'
+        : '부산 실시간 위성영상 (구름 · 적외/가시)';
+      iconWrap.className = isRadar
+        ? 'p-1.5 rounded-lg bg-emerald-950/60 text-emerald-400'
+        : 'p-1.5 rounded-lg bg-sky-950/60 text-sky-400';
+      iconWrap.innerHTML = `<i data-lucide="${isRadar ? 'radar' : 'satellite'}" class="w-4 h-4"></i>`;
+      originLink.href = isRadar
+        ? 'https://www.weather.go.kr/w/image/radar.do'
+        : 'https://www.weather.go.kr/w/image/sat.do';
+
+      frame.src = buildWindyUrl(isRadar ? 'radar' : 'satellite');
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+
+      if (modal.requestFullscreen) {
+        modal.requestFullscreen().catch(() => {});
+      }
+    }
+
+    function closeSatelliteFullscreen() {
+      const modal = document.getElementById('satellite-fullscreen-modal');
+      const frame = document.getElementById('frame-satellite-fullscreen');
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      if (modal) modal.classList.add('hidden');
+      if (frame) frame.src = 'about:blank';
+    }
+
     // 전체 UI 렌더링
     function renderAll() {
       // 1. 저장함 버튼 상태
@@ -972,38 +1594,110 @@
       }
 
       // 2. 탭 버튼 & 뷰 전환
-      const tabDis = document.getElementById('tab-disaster');
-      const tabInc = document.getElementById('tab-incident');
-      const viewDis = document.getElementById('view-disaster');
-      const viewInc = document.getElementById('view-incident');
+      const TAB_BASE = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap ';
+      const TAB_IDLE = TAB_BASE + 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50';
+      const TAB_ACTIVE = {
+        disaster: TAB_BASE + 'bg-rose-950/40 text-rose-300 border-rose-500',
+        incident: TAB_BASE + 'bg-indigo-950/50 text-indigo-300 border-indigo-500',
+        satellite: TAB_BASE + 'bg-sky-950/50 text-sky-300 border-sky-500'
+      };
+      ['disaster', 'incident', 'satellite'].forEach((key) => {
+        const isActive = state.activeTab === key;
+        document.getElementById('tab-' + key).className = isActive ? TAB_ACTIVE[key] : TAB_IDLE;
+        document.getElementById('view-' + key).classList.toggle('hidden', !isActive);
+      });
 
-      if (state.activeTab === 'disaster') {
-        tabDis.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition bg-rose-950/40 text-rose-300 border-rose-500';
-        tabInc.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50';
-        viewDis.classList.remove('hidden');
-        viewInc.classList.add('hidden');
+      const isSat = state.activeTab === 'satellite';
+      document.getElementById('search-filter-bar').classList.toggle('hidden', isSat);
+      document.getElementById('disaster-category-section').classList.toggle('hidden', isSat);
+      document.getElementById('press-release-section').classList.toggle('hidden', isSat);
+      if (isSat) {
+        loadSatelliteFrames(false);
       } else {
-        tabDis.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50';
-        tabInc.className = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition bg-indigo-950/50 text-indigo-300 border-indigo-500';
-        viewDis.classList.add('hidden');
-        viewInc.classList.remove('hidden');
+        stopSatelliteAutoRefresh();
       }
 
-      // 3. 재해·재난 카드 렌더링
-      const filteredDisasters = filterArticles(DISASTER_ARTICLES);
-      document.getElementById('disaster-count').textContent = filteredDisasters.length;
+      // 필터 제외 건수 라벨
+      const rejLabel = document.getElementById('disaster-rejected-label');
+      if (rejLabel) {
+        const rej = state.rejectedDisasters || [];
+        if (rej.length > 0) {
+          rejLabel.textContent = `데스크 분류·제외 ${rej.length}건`;
+          rejLabel.title = rej.map((r) => `• ${r.title}\n   → ${r.reason}`).join('\n');
+          rejLabel.classList.remove('hidden');
+        } else {
+          rejLabel.classList.add('hidden');
+        }
+      }
+
+      // 3. 재해·재난 카드 렌더링 (시민 행동요령 제외, 상단 '더보기' 버튼으로 확장)
+      const validDisasters = DISASTER_ARTICLES.filter(isStrictWeatherOrDisasterArticle);
+
+      const advisoryInfo = extractOfficialWeatherAdvisory(
+        validDisasters,
+        state.serverBannerHeadline,
+        state.serverBannerSubtext
+      );
+      const badgeEl = document.getElementById('banner-badge-label');
+      const headEl = document.getElementById('banner-headline-text');
+      const subEl = document.getElementById('banner-subtext-label');
+      if (badgeEl) badgeEl.textContent = advisoryInfo.badge;
+      if (headEl) headEl.textContent = advisoryInfo.headline;
+      if (subEl) subEl.textContent = advisoryInfo.subtext;
+
+      const filteredDisasters = filterArticles(validDisasters);
+      document.getElementById('disaster-tab-badge').textContent = validDisasters.length;
       const disContainer = document.getElementById('disaster-list');
+      const headerMoreBtn = document.getElementById('btn-header-disaster-more');
+      const headerMoreLabel = document.getElementById('header-disaster-more-label');
+      const headerMoreIcon = document.getElementById('header-disaster-more-icon');
 
       if (filteredDisasters.length === 0) {
         disContainer.className = 'block';
+        if (headerMoreBtn) headerMoreBtn.classList.add('hidden');
+        const isFiltered =
+          state.selectedDistrict !== '전체 구·군' ||
+          state.searchQuery.trim() !== '' ||
+          state.showBookmarksOnly;
         disContainer.innerHTML = `
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center text-slate-400 text-sm">
-            선택한 조건에 해당하는 재해·재난 기사가 없습니다.
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-1.5">
+            <p class="text-slate-200 font-bold text-sm">
+              ${isFiltered ? '선택한 검색 조건에 해당하는 날씨·재해·재난 특보가 없습니다.' : '현재 부산 지역에 발효된 기상특보 및 재해·재난 보도가 없습니다.'}
+            </p>
+            <p class="text-slate-400 text-xs">
+              ${isFiltered ? '필터 조건을 초기화하거나 다른 지역을 선택해 보세요.' : '기상특보나 재난·안전 통제 소식이 접수되면 즉시 표출됩니다.'}
+            </p>
           </div>
         `;
       } else {
+        const hasMoreThanLimit = filteredDisasters.length > INITIAL_DISASTER_LIMIT;
+        const visibleDisasters = state.isDisasterExpanded
+          ? filteredDisasters
+          : filteredDisasters.slice(0, INITIAL_DISASTER_LIMIT);
+
+        if (headerMoreBtn) {
+          headerMoreBtn.classList.remove('hidden');
+          if (!hasMoreThanLimit) {
+            headerMoreLabel.textContent = `더보기 (${filteredDisasters.length}건)`;
+            headerMoreBtn.disabled = true;
+            headerMoreBtn.className = 'inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900/60 text-slate-500 border border-slate-800 text-xs font-bold cursor-default';
+            if (headerMoreIcon) headerMoreIcon.setAttribute('data-lucide', 'chevron-down');
+          } else {
+            headerMoreBtn.disabled = false;
+            headerMoreBtn.className = 'inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-bold transition shadow-sm cursor-pointer';
+            const remainCount = filteredDisasters.length - INITIAL_DISASTER_LIMIT;
+            if (state.isDisasterExpanded) {
+              headerMoreLabel.textContent = '접기';
+              if (headerMoreIcon) headerMoreIcon.setAttribute('data-lucide', 'chevron-up');
+            } else {
+              headerMoreLabel.textContent = `더보기 (+${remainCount}건)`;
+              if (headerMoreIcon) headerMoreIcon.setAttribute('data-lucide', 'chevron-down');
+            }
+          }
+        }
+
         disContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
-        disContainer.innerHTML = filteredDisasters
+        disContainer.innerHTML = visibleDisasters
           .map((item) => {
             const style = getSeverityStyle(item.severity);
             const isBookmarked = state.bookmarkedIds.includes(item.id);
@@ -1017,7 +1711,7 @@
                     <div class="flex items-center space-x-2">
                       <span class="px-2.5 py-1 rounded-xl text-xs font-black border flex items-center space-x-1.5 ${style.badge}">
                         <span class="w-2 h-2 rounded-full ${style.dot}"></span>
-                        <span>${escapeHtml(item.severity)}</span>
+                        <span>${escapeHtml(item.severity || '주의')}</span>
                       </span>
                       <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-800 text-slate-200 border border-slate-700">
                         ${escapeHtml(item.category)}
@@ -1062,19 +1756,9 @@
                     ${escapeHtml(item.title)}
                   </h4>
 
-                  <p class="text-sm text-slate-300 leading-relaxed line-clamp-2 mb-4">
-                    ${escapeHtml(item.summary)}
+                  <p class="text-sm text-slate-300 leading-relaxed line-clamp-3 mb-4">
+                    ${escapeHtml(getDisplaySummary(item))}
                   </p>
-
-                  <div class="bg-slate-950/90 border border-rose-500/30 rounded-xl p-3 mb-4">
-                    <div class="text-[11px] font-extrabold text-rose-400 mb-0.5 flex items-center space-x-1">
-                      <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
-                      <span>시민 행동요령</span>
-                    </div>
-                    <p class="text-xs text-slate-200 font-medium leading-relaxed">
-                      ${escapeHtml(item.actionGuide)}
-                    </p>
-                  </div>
                 </div>
 
                 <div class="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs text-slate-400">
@@ -1100,6 +1784,7 @@
       // 4. 사건·사고 리스트 렌더링
       const filteredIncidents = filterArticles(INCIDENT_ARTICLES);
       document.getElementById('incident-count').textContent = filteredIncidents.length;
+      document.getElementById('incident-tab-badge').textContent = INCIDENT_ARTICLES.length;
       const incContainer = document.getElementById('incident-list');
 
       if (filteredIncidents.length === 0) {
@@ -1137,8 +1822,8 @@
                       ${escapeHtml(item.title)}
                     </h4>
 
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                      ${escapeHtml(item.summary)}
+                    <p class="text-sm text-slate-400 leading-relaxed line-clamp-2">
+                      ${escapeHtml(getDisplaySummary(item))}
                     </p>
 
                     <div class="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
@@ -1184,120 +1869,385 @@
           .join('');
       }
 
-      // 5. 하단 최근 3일 날짜별 통합 브리핑 렌더링
-      const filterBtnsContainer = document.getElementById('timeline-filter-buttons');
-      const allBtnActive = state.selectedTimelineDate === 'ALL';
-      let filterHtml = `
+      // 5. 하단 공공기관별 공식 재난·안전 현황 렌더링
+      const catBtnsContainer = document.getElementById('disaster-type-filter-buttons');
+      const allBtnActive = state.selectedDisasterCategory === 'ALL';
+      let catFilterHtml = `
         <button
           type="button"
-          onclick="setTimelineDate('ALL')"
+          onclick="setDisasterCategoryFilter('ALL')"
           class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
             allBtnActive
-              ? 'bg-amber-500 text-slate-950 border-amber-400'
+              ? 'bg-sky-500 text-slate-950 border-sky-400'
               : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
           }"
         >
-          최근 3일 전체
+          전체 기관
         </button>
       `;
-      RECENT_THREE_DAYS.forEach((d) => {
-        const isActive = state.selectedTimelineDate === d.date;
-        filterHtml += `
+      PUBLIC_INSTITUTION_GROUPS.forEach((grp) => {
+        const isActive = state.selectedDisasterCategory === grp.key;
+        catFilterHtml += `
           <button
             type="button"
-            onclick="setTimelineDate('${d.date}')"
+            onclick="setDisasterCategoryFilter('${grp.key}')"
             class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
               isActive
-                ? 'bg-amber-500 text-slate-950 border-amber-400'
+                ? 'bg-sky-500 text-slate-950 border-sky-400'
                 : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
             }"
           >
-            ${d.date.slice(5).replace('-', '/')}
+            ${escapeHtml(grp.agencyName)}
           </button>
         `;
       });
-      filterBtnsContainer.innerHTML = filterHtml;
+      catBtnsContainer.innerHTML = catFilterHtml;
 
-      const timelineGrid = document.getElementById('timeline-grid');
-      const allItems = [...DISASTER_ARTICLES, ...INCIDENT_ARTICLES];
-      const filteredDays = RECENT_THREE_DAYS.filter(
-        (d) => state.selectedTimelineDate === 'ALL' || state.selectedTimelineDate === d.date
+      const categoryGrid = document.getElementById('disaster-category-grid');
+      const visibleGroups = PUBLIC_INSTITUTION_GROUPS.filter(
+        (g) => state.selectedDisasterCategory === 'ALL' || state.selectedDisasterCategory === g.key
       );
 
-      timelineGrid.innerHTML = filteredDays
-        .map((day) => {
-          const items = allItems.filter((i) => i.date === day.date);
+      categoryGrid.className =
+        visibleGroups.length === 1 ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-3 gap-4';
+
+      categoryGrid.innerHTML = visibleGroups
+        .map((group) => {
+          const matchedLive = validDisasters.filter(
+            (item) => getInstitutionKeyForArticle(item) === group.key
+          );
+          const displayItems = matchedLive.length > 0 ? matchedLive : group.defaultItems;
           return `
-            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
-              <div>
-                <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-800">
-                  <span class="text-sm font-extrabold text-amber-300">
-                    ${escapeHtml(day.label)}
+            <div class="bg-slate-900/90 border ${group.borderClass} rounded-2xl p-4 flex flex-col justify-between space-y-3">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between pb-2.5 border-b border-slate-800">
+                  <span class="text-sm font-extrabold ${group.headerTextClass}">
+                    ${escapeHtml(group.agencyName)}
                   </span>
-                  <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-slate-800 text-slate-300">
-                    ${items.length}건
+                  <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md ${group.badgeClass}">
+                    ${escapeHtml(group.badgeText)}
                   </span>
                 </div>
 
-                <ul class="space-y-2.5">
-                  ${items
-                    .map(
-                      (item) => `
-                      <li
-                        onclick="openArticleModal('${item.id}')"
-                        class="p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800/90 cursor-pointer transition group"
-                      >
-                        <div class="flex items-center gap-1.5 mb-1">
-                          <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
-                            item.type === 'disaster'
-                              ? 'bg-rose-600/90 text-white'
-                              : 'bg-indigo-600/90 text-white'
-                          }">
-                            ${item.type === 'disaster' ? '재난·특보' : '사건·사고'}
-                          </span>
-                          <span class="text-[11px] text-slate-400 truncate">
-                            ${escapeHtml(item.district)}
-                          </span>
-                        </div>
-                        <p class="text-xs font-bold text-slate-200 group-hover:text-white leading-snug line-clamp-2">
-                          ${escapeHtml(item.title)}
-                        </p>
-                        <div class="mt-1.5 text-[10px] text-slate-400 font-medium">
-                          출처: ${escapeHtml(item.source)}
-                        </div>
-                      </li>`
-                    )
+                <div class="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                  ${escapeHtml(group.officialSummary)}
+                </div>
+
+                <ul class="space-y-2">
+                  ${displayItems
+                    .slice(0, 2)
+                    .map((item) => {
+                      const clickable = Boolean(findArticleById(item.id));
+                      return `
+                        <li
+                          ${clickable ? `onclick="openArticleModal('${item.id}')"` : ''}
+                          class="p-2.5 rounded-xl bg-slate-950/70 ${clickable ? 'hover:bg-slate-800/80 cursor-pointer' : ''} border border-slate-800/90 transition"
+                        >
+                          <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                            <span class="font-semibold text-slate-300 truncate">${escapeHtml(item.district)}</span>
+                            <span class="shrink-0">${escapeHtml(item.publishedAt)}</span>
+                          </div>
+                          <p class="text-xs font-bold text-slate-100 leading-snug line-clamp-2">
+                            ${escapeHtml(item.title)}
+                          </p>
+                        </li>
+                      `;
+                    })
                     .join('')}
                 </ul>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                <span class="text-[11px] text-slate-500">공식 발표 채널</span>
+                <a
+                  href="${escapeHtml(group.portalUrl)}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center space-x-1 text-xs font-bold ${group.headerTextClass} hover:underline"
+                >
+                  <span>${escapeHtml(group.portalName)}</span>
+                  <i data-lucide="external-link" class="w-3 h-3"></i>
+                </a>
               </div>
             </div>
           `;
         })
         .join('');
 
+      // 6. 하단 실시간 재해·재난 기사 및 언론사 보도자료 렌더링 (최신순 4개 + 더보기 확장)
+      const sortedPressPool = [...PRESS_RELEASE_ARTICLES].sort((a, b) =>
+        String(b.date || '').localeCompare(String(a.date || ''))
+      );
+      const filteredPress = filterArticles(sortedPressPool);
+      const pressGrid = document.getElementById('press-release-grid');
+      const pressMoreBtn = document.getElementById('btn-press-more');
+      const pressMoreLabel = document.getElementById('press-more-label');
+      const pressMoreIcon = document.getElementById('press-more-icon');
+
+      if (filteredPress.length === 0) {
+        pressGrid.className = 'block';
+        if (pressMoreBtn) pressMoreBtn.classList.add('hidden');
+        pressGrid.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-xs">
+            선택한 조건에 해당하는 재해·재난 기사 및 언론사 보도자료가 없습니다.
+          </div>
+        `;
+      } else {
+        const hasMorePress = filteredPress.length > INITIAL_PRESS_LIMIT;
+        const visiblePress = state.isPressExpanded
+          ? filteredPress
+          : filteredPress.slice(0, INITIAL_PRESS_LIMIT);
+
+        if (pressMoreBtn) {
+          pressMoreBtn.classList.remove('hidden');
+          if (!hasMorePress) {
+            pressMoreLabel.textContent = `더보기 (${filteredPress.length}건)`;
+            pressMoreBtn.disabled = true;
+            pressMoreBtn.className = 'self-start sm:self-auto inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900/60 text-slate-500 border border-slate-800 text-xs font-bold cursor-default';
+            if (pressMoreIcon) pressMoreIcon.setAttribute('data-lucide', 'chevron-down');
+          } else {
+            pressMoreBtn.disabled = false;
+            pressMoreBtn.className = 'self-start sm:self-auto inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-bold transition shadow-sm cursor-pointer';
+            const remainPress = filteredPress.length - INITIAL_PRESS_LIMIT;
+            if (state.isPressExpanded) {
+              pressMoreLabel.textContent = '접기';
+              if (pressMoreIcon) pressMoreIcon.setAttribute('data-lucide', 'chevron-up');
+            } else {
+              pressMoreLabel.textContent = `더보기 (+${remainPress}건)`;
+              if (pressMoreIcon) pressMoreIcon.setAttribute('data-lucide', 'chevron-down');
+            }
+          }
+        }
+
+        pressGrid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+        pressGrid.innerHTML = visiblePress
+          .map((item) => {
+            const isBookmarked = state.bookmarkedIds.includes(item.id);
+            return `
+              <article
+                onclick="openArticleModal('${item.id}')"
+                class="bg-slate-900/90 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-4 sm:p-5 transition cursor-pointer shadow-md flex flex-col justify-between"
+              >
+                <div>
+                  <div class="flex items-center justify-between gap-2 mb-2.5">
+                    <div class="flex items-center space-x-2 min-w-0">
+                      <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">
+                        ${escapeHtml(item.category)}
+                      </span>
+                      <span class="text-xs font-semibold text-slate-400 truncate">
+                        ${escapeHtml(item.district)}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center space-x-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onclick="event.stopPropagation(); toggleBookmark('${item.id}')"
+                        class="p-1.5 rounded-xl border transition ${
+                          isBookmarked
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        }"
+                        title="기사 저장"
+                      >
+                        <i data-lucide="bookmark" class="w-3.5 h-3.5"></i>
+                      </button>
+
+                      <button
+                        type="button"
+                        onclick="event.stopPropagation(); openDraftModal('${item.id}')"
+                        class="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow transition"
+                        title="30초 단신 기사작성"
+                      >
+                        <i data-lucide="file-edit" class="w-3.5 h-3.5"></i>
+                        <span>기사작성</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <h4 class="text-base font-extrabold text-white leading-snug mb-2">
+                    ${escapeHtml(item.title)}
+                  </h4>
+
+                  <p class="text-xs sm:text-sm text-slate-300 leading-relaxed line-clamp-2 mb-3">
+                    ${escapeHtml(getDisplaySummary(item))}
+                  </p>
+                </div>
+
+                <div class="flex items-center justify-between pt-2.5 border-t border-slate-800/80 text-xs text-slate-400">
+                  <div class="flex items-center space-x-2 min-w-0">
+                    <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-200 font-bold border border-slate-700 truncate">
+                      출처: ${escapeHtml(item.source)}
+                    </span>
+                    <span class="flex items-center shrink-0">
+                      <i data-lucide="clock" class="w-3 h-3 mr-1"></i>
+                      ${escapeHtml(item.publishedAt)}
+                    </span>
+                  </div>
+                  <span class="text-rose-400 font-bold flex items-center shrink-0">
+                    전문 보기 <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                  </span>
+                </div>
+              </article>
+            `;
+          })
+          .join('');
+      }
+
       lucide.createIcons();
     }
 
-    function setTimelineDate(dateStr) {
-      state.selectedTimelineDate = dateStr;
+    function setDisasterCategoryFilter(categoryKey) {
+      state.selectedDisasterCategory = categoryKey;
       renderAll();
+    }
+
+    // Vercel 백엔드(/api/news) 실시간 연동
+    async function loadLiveNewsFromVercel(isManualRefresh = false) {
+      const statusEl = document.getElementById('live-sync-status');
+
+      if (isManualRefresh) {
+        const now = Date.now();
+        const elapsed = now - state.lastManualFetchTime;
+        if (state.lastManualFetchTime > 0 && elapsed < 15000) {
+          const remainSec = Math.ceil((15000 - elapsed) / 1000);
+          showToast(`초기 화면으로 복귀했습니다. (${remainSec}초 후 재수집 가능)`);
+          return;
+        }
+        state.lastManualFetchTime = now;
+      }
+
+      try {
+        if (statusEl) {
+          statusEl.textContent = '최신 기사 업데이트 중...';
+          statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-600/50 animate-pulse';
+        }
+        if (isManualRefresh) {
+          showToast('최신 기사를 불러오고 있습니다...');
+        }
+
+        const baseApiUrl =
+          window.location.protocol === 'file:'
+            ? 'https://busansafe.vercel.app/api/news'
+            : '/api/news';
+        const apiUrl = isManualRefresh ? `${baseApiUrl}?t=${Date.now()}` : baseApiUrl;
+        const response = await fetch(apiUrl, isManualRefresh ? { cache: 'no-store' } : {});
+        const liveData = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const errCode = liveData?.status || response.status;
+          const errReason =
+            errCode === 429
+              ? 'API 할당량 초과(429) - 잠시 후 다시 시도해 주세요'
+              : liveData?.error || `서버 응답 오류(${errCode})`;
+          throw new Error(errReason);
+        }
+
+        const rejected = [];
+        const nextDisasters = [];
+        const reroutedIncidents = [];
+
+        if (Array.isArray(liveData.disasters)) {
+          liveData.disasters.forEach((d, idx) => {
+            const classification = classifyMediaDeskArticle(d);
+            if (classification.desk === 'disaster') {
+              nextDisasters.push({
+                ...d,
+                id: d.id || `dis-live-${idx + 1}`,
+                type: 'disaster'
+              });
+            } else if (classification.desk === 'incident') {
+              reroutedIncidents.push({
+                ...d,
+                id: d.id || `inc-rerouted-${idx + 1}`,
+                type: 'incident',
+                category: classification.mappedCategory || d.category || '사건/치안',
+                status: d.status || '관계 당국 확인 중'
+              });
+              rejected.push({
+                title: String((d && d.title) || '(제목 없음)'),
+                reason: '사건·사고 탭으로 자동 분류됨'
+              });
+            } else {
+              rejected.push({
+                title: String((d && d.title) || '(제목 없음)'),
+                reason: classification.reason
+              });
+            }
+          });
+        }
+
+        const baseIncidents = Array.isArray(liveData.incidents)
+          ? liveData.incidents.map((inc, idx) => ({
+              ...inc,
+              id: inc.id || `inc-live-${idx + 1}`,
+              type: 'incident'
+            }))
+          : INCIDENT_ARTICLES;
+
+        const mergedIncidents = [...reroutedIncidents, ...baseIncidents];
+
+        state.rejectedDisasters = rejected;
+        if (nextDisasters.length > 0) {
+          DISASTER_ARTICLES = nextDisasters;
+          const existingTitles = new Set(PRESS_RELEASE_ARTICLES.map((p) => p.title));
+          const freshPress = nextDisasters
+            .filter((d) => !existingTitles.has(d.title))
+            .map((d, idx) => ({
+              ...d,
+              id: `pr-live-${idx + 1}`,
+              category: d.category.startsWith('보도') ? d.category : `언론보도 · ${d.category}`
+            }));
+          if (freshPress.length > 0) {
+            PRESS_RELEASE_ARTICLES = [...freshPress, ...PRESS_RELEASE_ARTICLES];
+          }
+        }
+        INCIDENT_ARTICLES = mergedIncidents;
+        state.isDisasterExpanded = false;
+        state.isPressExpanded = false;
+
+        if (liveData.bannerHeadline) {
+          state.serverBannerHeadline = liveData.bannerHeadline;
+        }
+        if (liveData.bannerSubtext) {
+          state.serverBannerSubtext = liveData.bannerSubtext;
+        }
+
+        if (statusEl) {
+          statusEl.textContent = '실시간 연동됨';
+          statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-950/90 text-emerald-300 border border-emerald-600/50';
+        }
+
+        renderAll();
+        if (isManualRefresh) {
+          showToast('최신 기사로 업데이트되었습니다.');
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = '기본 브리핑 모드';
+          statusEl.className = 'hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-xl text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/80';
+        }
+        if (isManualRefresh) {
+          showToast(err.message || '최신 기사 업데이트 중 일시적 지연이 발생했습니다.');
+        }
+      }
     }
 
     // 초기화 및 이벤트 바인딩
     window.addEventListener('DOMContentLoaded', () => {
-      // 구·군 드롭다운 채우기
       const districtSelect = document.getElementById('district-select');
       districtSelect.innerHTML = BUSAN_DISTRICTS.map(
         (d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`
       ).join('');
 
-      // Btv 로고 클릭 -> 초기화면 복귀
       document.getElementById('btn-reset-home').addEventListener('click', () => {
         state.activeTab = 'disaster';
         state.selectedDistrict = '전체 구·군';
         state.searchQuery = '';
         state.showBookmarksOnly = false;
-        state.selectedTimelineDate = 'ALL';
+        state.selectedDisasterCategory = 'ALL';
+        state.isDisasterExpanded = false;
+        state.isPressExpanded = false;
         document.getElementById('search-input').value = '';
         document.getElementById('btn-clear-search').classList.add('hidden');
         districtSelect.value = '전체 구·군';
@@ -1305,9 +2255,19 @@
         closeDraftModal();
         window.scrollTo({ top: 0, behavior: 'smooth' });
         renderAll();
+        loadLiveNewsFromVercel(true);
       });
 
-      // 탭 전환
+      document.getElementById('btn-header-disaster-more').addEventListener('click', () => {
+        state.isDisasterExpanded = !state.isDisasterExpanded;
+        renderAll();
+      });
+
+      document.getElementById('btn-press-more').addEventListener('click', () => {
+        state.isPressExpanded = !state.isPressExpanded;
+        renderAll();
+      });
+
       document.getElementById('tab-disaster').addEventListener('click', () => {
         state.activeTab = 'disaster';
         renderAll();
@@ -1316,18 +2276,27 @@
         state.activeTab = 'incident';
         renderAll();
       });
+      document.getElementById('tab-satellite').addEventListener('click', () => {
+        state.activeTab = 'satellite';
+        renderAll();
+      });
+      document.getElementById('btn-refresh-satellite').addEventListener('click', () => {
+        loadSatelliteFrames(true);
+      });
 
-      // 저장함 필터 토글
       document.getElementById('btn-toggle-bookmarks').addEventListener('click', () => {
         state.showBookmarksOnly = !state.showBookmarksOnly;
+        state.isDisasterExpanded = false;
+        state.isPressExpanded = false;
         renderAll();
       });
 
-      // 검색 입력
       const searchInput = document.getElementById('search-input');
       const clearSearchBtn = document.getElementById('btn-clear-search');
       searchInput.addEventListener('input', (e) => {
         state.searchQuery = e.target.value;
+        state.isDisasterExpanded = false;
+        state.isPressExpanded = false;
         if (state.searchQuery) {
           clearSearchBtn.classList.remove('hidden');
         } else {
@@ -1337,26 +2306,37 @@
       });
       clearSearchBtn.addEventListener('click', () => {
         state.searchQuery = '';
+        state.isDisasterExpanded = false;
+        state.isPressExpanded = false;
         searchInput.value = '';
         clearSearchBtn.classList.add('hidden');
         renderAll();
       });
 
-      // 구·군 필터 선택
       districtSelect.addEventListener('change', (e) => {
         state.selectedDistrict = e.target.value;
+        state.isDisasterExpanded = false;
+        state.isPressExpanded = false;
         renderAll();
       });
 
-      // 모달 바깥 영역 클릭 시 닫기
       document.getElementById('article-modal').addEventListener('click', (e) => {
         if (e.target.id === 'article-modal') closeArticleModal();
       });
       document.getElementById('draft-modal').addEventListener('click', (e) => {
         if (e.target.id === 'draft-modal') closeDraftModal();
       });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const satModal = document.getElementById('satellite-fullscreen-modal');
+          if (satModal && !satModal.classList.contains('hidden')) {
+            closeSatelliteFullscreen();
+          }
+        }
+      });
 
       renderAll();
+      loadLiveNewsFromVercel();
     });
   </script>
 </body>
