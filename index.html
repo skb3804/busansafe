@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Btv 부산재난방송 - 재해·재난 및 사건·사고 통합</title>
+  <title>Btv 부산재난방송 - 재해·재난 및 실시간 도로 CCTV 통합</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter & Noto Sans KR -->
@@ -12,11 +12,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Leaflet GIS Map CDN (Roadplus 부산 권역 CCTV 지도용) -->
+  <!-- HLS.js (실시간 CCTV 스트리밍 .m3u8 재생용) -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <!-- Leaflet CSS & JS (CCTV 지도 표시용) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    tailwind.config = {
+    // Tailwind CDN 비동기/지연 로드 시 ReferenceError 방지
+    window.tailwind = window.tailwind || {};
+    window.tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
@@ -26,6 +30,53 @@
       },
     };
   </script>
+  <style>
+    /* 실시간 도로 CCTV 지도 및 플레이어 전용 스타일 */
+    #cctv-map {
+      height: 100%;
+      width: 100%;
+      min-height: 420px;
+      z-index: 10;
+      background-color: #0f172a;
+    }
+    .leaflet-container img.leaflet-tile {
+      max-width: none !important;
+      max-height: none !important;
+      visibility: visible !important;
+    }
+    #cctv-player-card.fullscreen-mode {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      border-radius: 0 !important;
+      z-index: 9999 !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    #cctv-player-card.fullscreen-mode .cctv-video-container {
+      flex: 1 !important;
+      aspect-ratio: auto !important;
+      height: 100% !important;
+    }
+    .cctv-marker {
+      background-color: #2563eb;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      transition: transform 0.2s;
+    }
+    .cctv-marker:hover {
+      background-color: #ef4444;
+      transform: scale(1.25);
+      z-index: 1000 !important;
+    }
+  </style>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
 
@@ -57,7 +108,7 @@
             </span>
           </div>
           <p class="text-xs text-slate-400 hidden sm:block">
-            부산광역시 재해·재난 및 사건·사고 실시간 뉴스 통합
+            부산광역시 재해·재난 · 사건·사고 · 실시간 도로 CCTV 통합
           </p>
         </div>
       </button>
@@ -78,12 +129,12 @@
       </div>
     </div>
 
-    <!-- NAVIGATION TABS: 메인(재해·재난) vs 사건·사고 vs 실시간 위성영상 -->
+    <!-- NAVIGATION TABS: 메인(재해·재난) vs 사건·사고 vs 실시간 위성영상 vs 실시간 도로 CCTV -->
     <div class="max-w-5xl mx-auto px-4 flex space-x-2 border-t border-slate-800/80 pt-2 overflow-x-auto">
       <button
         type="button"
         id="tab-disaster"
-        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap bg-rose-950/40 text-rose-300 border-rose-500"
+        class="flex-1 sm:flex-none sm:w-48 py-3 px-3.5 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap bg-rose-950/40 text-rose-300 border-rose-500"
       >
         <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
         <span>재해 · 재난 현황</span>
@@ -95,7 +146,7 @@
       <button
         type="button"
         id="tab-incident"
-        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
+        class="flex-1 sm:flex-none sm:w-48 py-3 px-3.5 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
       >
         <i data-lucide="siren" class="w-4 h-4"></i>
         <span>사건 · 사고 소식</span>
@@ -107,7 +158,7 @@
       <button
         type="button"
         id="tab-satellite"
-        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
+        class="flex-1 sm:flex-none sm:w-48 py-3 px-3.5 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
       >
         <i data-lucide="satellite" class="w-4 h-4"></i>
         <span>실시간 위성영상</span>
@@ -117,11 +168,11 @@
       <button
         type="button"
         id="tab-cctv"
-        class="flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
+        class="flex-1 sm:flex-none sm:w-48 py-3 px-3.5 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50"
       >
         <i data-lucide="cctv" class="w-4 h-4"></i>
-        <span>CCTV</span>
-        <span class="ml-1 px-1.5 py-0.5 text-[10px] rounded-md bg-emerald-600 text-white font-extrabold tracking-wide">Roadplus</span>
+        <span>실시간 도로 CCTV</span>
+        <span class="ml-1 px-1.5 py-0.5 text-[10px] rounded-md bg-emerald-600 text-white font-extrabold tracking-wide">BUSAN</span>
       </button>
     </div>
   </header>
@@ -184,15 +235,10 @@
 
       <!-- 재해·재난 기사 리스트 헤더 -->
       <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center space-x-2">
-          <h3 class="text-base font-bold text-slate-200 flex items-center space-x-2">
-            <i data-lucide="cloud-rain" class="w-5 h-5 text-rose-400"></i>
-            <span>실시간 재해 · 재난 특보</span>
-          </h3>
-          <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
-            기상청 · 부산 안전 ON 공식
-          </span>
-        </div>
+        <h3 class="text-base font-bold text-slate-200 flex items-center space-x-2">
+          <i data-lucide="cloud-rain" class="w-5 h-5 text-rose-400"></i>
+          <span>실시간 재해 · 재난 특보</span>
+        </h3>
         <div class="flex items-center space-x-2">
           <span id="disaster-rejected-label" class="hidden text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 border border-slate-700 cursor-help"></span>
           <button
@@ -311,149 +357,126 @@
       </p>
     </div>
 
-    <!-- TAB 4: 부산 권역 CCTV (Roadplus 멀티뷰어 모드) -->
+    <!-- TAB 4: 실시간 부산 도로 CCTV -->
     <div id="view-cctv" class="hidden space-y-4">
-      <!-- 상단 Roadplus 멀티뷰어 컨트롤 바 -->
-      <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div class="flex items-start sm:items-center space-x-3">
-          <div class="p-2 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 shrink-0">
-            <i data-lucide="layout-grid" class="w-5 h-5"></i>
+      <!-- 상단 CCTV 제어 바 -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <i data-lucide="video" class="w-5 h-5"></i>
           </div>
           <div>
-            <div class="flex flex-wrap items-center gap-2">
-              <h3 class="text-sm sm:text-base font-extrabold text-white">
-                부산지역 CCTV 지도 · Roadplus 멀티뷰어
-              </h3>
-              <span class="px-2 py-0.5 text-[11px] font-black rounded-md bg-emerald-600 text-white flex items-center space-x-1">
-                <i data-lucide="check-square" class="w-3 h-3"></i>
-                <span>멀티뷰어 선택됨</span>
-              </span>
-            </div>
-            <p class="text-xs text-slate-400 mt-0.5">
-              지도 위의 CCTV 아이콘 또는 좌측 지점을 클릭하면 최대 4채널 멀티뷰어로 실시간 영상을 동시에 볼 수 있습니다.
-            </p>
+            <h3 class="text-base font-extrabold text-white">부산 실시간 고속도로 · 국도 CCTV</h3>
+            <p class="text-xs text-slate-400">국가교통정보센터(ITS) 실시간 교통 영상 · 마커 또는 목록 클릭 시 재생</p>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            type="button"
-            id="btn-toggle-roadplus-embed"
-            onclick="toggleRoadplusDirectView()"
-            class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 transition"
-          >
-            <i data-lucide="globe" class="w-3.5 h-3.5"></i>
-            <span id="roadplus-embed-toggle-label">Roadplus 원본 페이지 보기</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="cctv-road-type" class="bg-slate-950 border border-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500">
+            <option value="ex">고속도로</option>
+            <option value="its">국도 / 주요도로</option>
+          </select>
+
+          <select id="cctv-region-select" class="bg-slate-950 border border-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500">
+            <option value="busan_all" selected>부산권 전체</option>
+            <option value="busan_west">서부산권 (사상/강서/가덕/남해선)</option>
+            <option value="busan_central">도심권 (동래/금정/연제/경부선)</option>
+            <option value="busan_east">동부산권 (해운대/기장/부산울산선)</option>
+          </select>
+
+          <select id="cctv-map-style" title="지도 배경 변경" class="bg-slate-950 border border-slate-700 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500">
+            <option value="esri_street" selected>컬러 도로지도 (권장)</option>
+            <option value="esri_dark">다크 캔버스 지도</option>
+            <option value="esri_sat">위성 지도</option>
+            <option value="vector_offline">부산 벡터 도로망 (오프라인용)</option>
+          </select>
+
+          <button type="button" id="btn-fetch-cctv" class="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>조회</span>
           </button>
-          <a
-            href="https://www.roadplus.co.kr/main#"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition"
-          >
-            <span>새창 열기</span>
-            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-          </a>
         </div>
       </div>
 
-      <!-- Roadplus 공식 사이트 직접 임베드 패널 (토글 시 표시) -->
-      <div id="roadplus-direct-embed-box" class="hidden bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-        <div class="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs">
-          <span class="font-bold text-emerald-300 flex items-center space-x-1.5">
-            <i data-lucide="radio" class="w-3.5 h-3.5 animate-pulse"></i>
-            <span>한국도로공사 Roadplus (roadplus.co.kr/main#) · 부산권 멀티뷰어</span>
-          </span>
-          <span class="text-slate-400">보안 정책으로 프레임이 차단될 경우 우측 &lsquo;새창 열기&rsquo; 또는 하단 부산 CCTV 지도를 이용해 주세요.</span>
-        </div>
-        <iframe
-          id="frame-roadplus-official"
-          title="한국도로공사 Roadplus 부산 CCTV 멀티뷰어"
-          class="w-full h-[460px] bg-slate-950 block"
-          frameborder="0"
-          allowfullscreen
-        ></iframe>
+      <!-- CCTV 상태 안내 배너 -->
+      <div id="cctv-status-banner" class="hidden bg-amber-500/15 border border-amber-500/40 text-amber-200 px-4 py-2.5 rounded-xl text-xs flex items-center justify-between">
+        <span id="cctv-status-text">데이터를 불러오는 중입니다...</span>
+        <button type="button" onclick="document.getElementById('cctv-status-banner').classList.add('hidden')" class="text-amber-200 hover:text-white ml-2">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
 
-      <!-- 좌측 지점 목록 + 우측 부산 CCTV GIS 지도 -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <!-- 좌측 CCTV 목록 & 노선 필터 -->
-        <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between space-y-3">
-          <div class="space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-extrabold text-slate-200 flex items-center space-x-1.5">
-                <i data-lucide="video" class="w-4 h-4 text-emerald-400"></i>
-                <span>부산 주요 CCTV 지점 (<span id="cctv-node-count">8</span>개소)</span>
-              </span>
-              <span class="text-[11px] text-emerald-400 font-semibold">클릭 시 영상 추가</span>
+      <!-- CCTV 메인 뷰 (좌측 목록 + 우측 지도/플레이어) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col lg:flex-row h-[640px] lg:h-[600px]">
+        <!-- 좌측 검색 및 리스트 -->
+        <div class="w-full lg:w-80 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col h-56 lg:h-full shrink-0">
+          <div class="p-3 border-b border-slate-800 space-y-2">
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input
+                type="text"
+                id="cctv-search-input"
+                placeholder="지점명 검색 (예: 구서, 대저, 기장)"
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              />
             </div>
-
-            <!-- 노선 분류 버튼 -->
-            <div id="cctv-category-pills" class="flex flex-wrap gap-1.5"></div>
-
-            <!-- CCTV 지점 리스트 -->
-            <div id="cctv-node-list" class="space-y-2 max-h-[340px] overflow-y-auto pr-1"></div>
+            <div class="flex justify-between items-center text-[11px] text-slate-400">
+              <span>조회 CCTV: <strong id="cctv-count" class="text-emerald-400">0</strong>개</span>
+              <span id="cctv-api-badge" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">API 대기</span>
+            </div>
           </div>
 
-          <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-            <span>출처: 한국도로공사 Roadplus · 부산 ITS</span>
-            <button
-              type="button"
-              onclick="resetBusanCctvMapCenter()"
-              class="text-emerald-400 hover:underline font-bold"
-            >
-              부산 중심 복귀
-            </button>
+          <div id="cctv-list" class="flex-1 overflow-y-auto p-2 space-y-1.5">
+            <div class="text-center text-slate-500 py-10 text-xs">
+              부산 지역 CCTV 목록을 불러오는 중입니다...
+            </div>
           </div>
         </div>
 
-        <!-- 우측 부산지역 CCTV 인터랙티브 지도 -->
-        <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
-          <div class="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div class="flex items-center space-x-2">
-              <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
-                부산광역시 권역 지도
-              </span>
-              <span class="text-slate-300 font-semibold">경부선 · 남해선 · 외곽순환선 · 도시고속 · 해안교량</span>
-            </div>
-            <div class="flex items-center space-x-3 text-[11px] text-slate-400">
-              <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span><span>고속도로</span></span>
-              <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span><span>도시고속·교량</span></span>
-              <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span><span>하천·해안</span></span>
-            </div>
-          </div>
-          <div id="busan-cctv-map" class="w-full h-[380px] sm:h-[420px] bg-slate-950 z-0"></div>
-        </div>
-      </div>
+        <!-- 우측 지도 및 플로팅 플레이어 -->
+        <div class="flex-1 relative h-full min-h-[380px]">
+          <div id="cctv-map"></div>
 
-      <!-- 하단 Roadplus 멀티뷰어 실시간 영상 패널 (최대 4채널 동시 시청) -->
-      <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl p-4 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
-          <div class="flex items-center space-x-2">
-            <span class="px-2 py-0.5 rounded-md text-xs font-black bg-emerald-600 text-white">MULTI-VIEWER</span>
-            <h4 class="text-sm sm:text-base font-extrabold text-white">
-              선택된 실시간 CCTV 멀티뷰어 (<span id="cctv-selected-count">2</span>/4채널)
-            </h4>
-          </div>
-          <div class="flex items-center space-x-2">
-            <button
-              type="button"
-              onclick="selectDefaultMultiCctvs()"
-              class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            >
-              주요 4채널 일괄 보기
-            </button>
-            <button
-              type="button"
-              onclick="clearMultiCctvs()"
-              class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 transition"
-            >
-              전체 비우기
-            </button>
+          <!-- 플로팅 CCTV 영상 플레이어 -->
+          <div id="cctv-player-card" class="hidden absolute bottom-3 right-3 left-3 sm:left-auto sm:w-[400px] bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-30 transition-all">
+            <div class="px-3.5 py-2.5 bg-slate-800 border-b border-slate-700 flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-2 truncate pr-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0"></span>
+                <h4 id="cctv-player-title" class="font-bold text-xs sm:text-sm text-white truncate">CCTV 선택됨</h4>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" id="btn-cctv-fullscreen" title="전체화면 확대/축소" class="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-slate-700 transition">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                </button>
+                <button type="button" id="btn-cctv-close" title="닫기" class="p-1.5 text-slate-300 hover:text-rose-400 rounded-lg hover:bg-slate-700 transition">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="cctv-video-container relative bg-black aspect-video flex items-center justify-center">
+              <video id="cctv-video" class="w-full h-full object-contain" controls autoplay muted playsinline></video>
+
+              <div id="cctv-video-loader" class="hidden absolute inset-0 bg-black/75 flex flex-col items-center justify-center gap-2">
+                <div class="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                <span class="text-xs text-slate-300">실시간 스트리밍 연결 중...</span>
+              </div>
+
+              <div id="cctv-video-error" class="hidden absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-4 text-center space-y-2">
+                <i data-lucide="alert-circle" class="w-6 h-6 text-amber-400"></i>
+                <p class="text-xs text-slate-300">영상을 재생할 수 없습니다.<br/>(CCTV 점검 중이거나 보안 정책 제한)</p>
+                <a id="cctv-direct-link" href="#" target="_blank" rel="noopener noreferrer" class="text-xs bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 px-3 py-1.5 rounded-lg font-semibold">
+                  새 창에서 스트림 열기
+                </a>
+              </div>
+            </div>
+
+            <div class="px-3.5 py-2 bg-slate-800/90 text-[11px] text-slate-400 flex justify-between items-center shrink-0">
+              <span id="cctv-player-coords">좌표: -</span>
+              <span class="uppercase font-mono text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-200">HLS LIVE</span>
+            </div>
           </div>
         </div>
-
-        <div id="cctv-multiviewer-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </div>
     </div>
 
@@ -481,41 +504,21 @@
       <div id="disaster-category-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- BOTTOM SECTION 2: 언론매체 재난·안전 보도 및 보도자료 리스트 -->
-    <section id="press-release-section" class="pt-5 border-t border-slate-800 space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <!-- 최하단: 언론사별 재해·재난 보도 리스트 -->
+    <section id="press-by-outlet-section" class="pt-4 border-t border-slate-800 space-y-4">
+      <div class="flex items-center justify-between gap-3">
         <div class="flex items-center space-x-2.5">
-          <div class="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+          <div class="p-2 rounded-xl bg-slate-800 text-amber-400">
             <i data-lucide="newspaper" class="w-5 h-5"></i>
           </div>
           <div>
-            <div class="flex items-center space-x-2">
-              <h3 class="text-base font-extrabold text-white">
-                언론매체 재난 · 안전 보도자료 (<span id="press-release-count">0</span>건)
-              </h3>
-              <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                MEDIA · PRESS
-              </span>
-            </div>
-            <p class="text-xs text-slate-400">
-              부산 지역 주요 언론사 보도 및 지자체·유관기관 공식 보도자료 리스트입니다.
-            </p>
+            <h3 class="text-base font-extrabold text-white">언론사별 재해 · 재난 보도</h3>
+            <p class="text-xs text-slate-400">부산 지역 재해·재난 관련 보도를 언론사별로 모아 보여드립니다.</p>
           </div>
         </div>
-
-        <button
-          type="button"
-          id="btn-press-release-more"
-          onclick="openAllDisasterArticlesModal('PRESS')"
-          class="self-start sm:self-auto inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-white border border-amber-500/40 text-xs font-bold transition shadow-sm"
-        >
-          <span>전체 보도자료 보기</span>
-          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-        </button>
+        <span id="press-outlet-count" class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-amber-300 border border-slate-700 shrink-0"></span>
       </div>
-
-      <!-- 언론매체 보도자료 리스트 컨테이너 -->
-      <div id="press-release-list" class="grid grid-cols-1 md:grid-cols-2 gap-3.5"></div>
+      <div id="press-by-outlet-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </section>
   </main>
 
@@ -525,38 +528,30 @@
       <div class="flex items-center space-x-2">
         <span class="font-bold text-slate-200">Btv 부산 안전 브리핑</span>
         <span>·</span>
-        <span>기상청 · 부산 안전 ON · 한국도로공사 · 부산소방재난본부 공식 자료 연동</span>
+        <span>기상청 · 부산 안전 ON · 국가교통정보센터(ITS) · 부산소방재난본부 연동</span>
       </div>
-      <div id="footer-briefing-period">공공기관 공식 재난·안전 현황 브리핑</div>
+      <div id="footer-briefing-period">공공기관 공식 재난·안전 및 실시간 도로 CCTV 통합</div>
     </div>
   </footer>
 
   <!-- MODAL 1: ARTICLE DETAIL MODAL (기사 전문 보기) -->
   <div id="article-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div id="article-modal-box" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl">
-      <!-- 동적 렌더링 -->
-    </div>
+    <div id="article-modal-box" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl"></div>
   </div>
 
   <!-- MODAL 2: 30초 단신 기사 작성 & 연계기사 아이템 모달 -->
   <div id="draft-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
-    <div id="draft-modal-box" class="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-      <!-- 동적 렌더링 -->
-    </div>
+    <div id="draft-modal-box" class="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"></div>
   </div>
 
   <!-- MODAL 2-1: 공공기관별 전체 기사 리스트 모달 -->
   <div id="agency-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
-    <div id="agency-modal-box" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
-      <!-- 동적 렌더링 -->
-    </div>
+    <div id="agency-modal-box" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden shadow-2xl"></div>
   </div>
 
   <!-- MODAL 2-2: 실시간 재해·재난 특보 및 언론사 기사 전체 리스트 새창 모달 -->
   <div id="disaster-all-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
-    <div id="disaster-all-modal-box" class="bg-slate-900 border border-rose-500/40 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-      <!-- 동적 렌더링 -->
-    </div>
+    <div id="disaster-all-modal-box" class="bg-slate-900 border border-rose-500/40 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"></div>
   </div>
 
   <!-- MODAL 3: 레이더 · 실시간 위성영상 전체화면 모달 -->
@@ -600,14 +595,14 @@
     </div>
   </div>
 
-  <!-- TOAST NOTIFICATION (alert 대신 커스텀 알림 메시지 박스 사용) -->
+  <!-- TOAST NOTIFICATION -->
   <div id="toast-box" class="hidden fixed bottom-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-xl border border-emerald-400/50 text-xs font-bold flex items-center space-x-2">
     <i data-lucide="check-circle-2" class="w-4 h-4"></i>
     <span id="toast-message">처리가 완료되었습니다.</span>
   </div>
 
   <script>
-    // --- 기본 내장 재해·재난 데이터 (실제 날씨·기상특보 및 재난안전 통제 보도만 엄선) ---
+    // --- 기본 내장 재해·재난 데이터 ---
     let DISASTER_ARTICLES = [
       {
         id: 'dis-1',
@@ -707,7 +702,7 @@
       }
     ];
 
-    // --- 실시간 재해·재난 기사 및 언론사 보도자료 기본 데이터 (최신순) ---
+    // --- 실시간 재해·재난 기사 및 언론사 보도자료 기본 데이터 ---
     let PRESS_RELEASE_ARTICLES = [
       {
         id: 'pr-1',
@@ -839,7 +834,7 @@
       }
     ];
 
-    // --- 공공기관별 공식 자료 상시 현황 데이터 (기상청 / 부산시·안전ON / 도로공사·소방) ---
+    // --- 공공기관별 공식 자료 상시 현황 데이터 ---
     const PUBLIC_INSTITUTION_GROUPS = [
       {
         key: 'KMA',
@@ -903,7 +898,7 @@
       }
     ];
 
-    // --- 최근 3일(2026.11.10 ~ 2026.11.12) 부산 지역 사건·사고 기사 데이터 ---
+    // --- 부산 지역 사건·사고 기사 데이터 ---
     let INCIDENT_ARTICLES = [
       {
         id: 'inc-1',
@@ -994,96 +989,6 @@
         publishedAt: '11월 12일 08:50',
         status: '현장 수습 완료 · 정상 소통',
         content: '부산경찰청 교통순찰대에 따르면 12일 오전 동서고가로 주례 방면으로 달리던 승용차가 정체 구간에서 속도를 줄이지 못해 앞선 화물차를 들이받으면서 연쇄 추돌이 발생했습니다. 사고 처리 과정에서 1개 차로가 약 50분간 통제됐으며, 경찰은 블랙박스 영상을 토대로 정확한 과실 여부를 조사 중입니다.'
-      },
-      {
-        id: 'inc-7',
-        type: 'incident',
-        date: '2026-11-12',
-        dateLabel: '11월 12일 (오늘)',
-        category: '화재',
-        district: '해운대구 재송동',
-        title: '해운대구 재송동 상가건물 2층 음식점 주방서 불… 스프링클러 작동해 15분 만에 진화',
-        summary: '12일 낮 12시 10분경 부산 해운대구 재송동의 한 4층 규모 근린생활시설 2층 음식점 주방 덕트에서 불이 났으나 건물 스프링클러가 즉시 작동해 큰 피해 없이 15분 만에 꺼졌습니다.',
-        source: '해운대소방서 · KBS부산',
-        sourceUrl: 'https://news.kbs.co.kr',
-        publishedAt: '11월 12일 12:35',
-        status: '완진 · 손님·직원 18명 대피',
-        content: '해운대소방서에 따르면 점심시간 조리 과정 중 튀김기 과열로 발생한 불꽃이 주방 배기덕트 기름때에 옮겨붙었으나, 천장 스프링클러가 정상 작동하고 직원들이 소화기로 초기 진화에 나서 인명피해 없이 진화됐습니다.'
-      },
-      {
-        id: 'inc-8',
-        type: 'incident',
-        date: '2026-11-11',
-        dateLabel: '11월 11일 (어제)',
-        category: '치안/범죄',
-        district: '부산진구 서면 일대',
-        title: '부산 서면 일대서 새벽 시간대 무인점포 7곳 돌며 현금 훔친 20대 구속 송치',
-        summary: '부산진경찰서는 심야 시간대 서면과 부전동 일대 무인 아이스크림·사진관 등 7곳의 키오스크 잠금장치를 공구로 파손해 현금 320여만 원을 훔친 20대 남성을 특수절도 혐의로 구속 송치했습니다.',
-        source: '부산진경찰서 · 연합뉴스',
-        sourceUrl: 'https://www.yna.co.kr',
-        publishedAt: '11월 11일 15:10',
-        status: '피의자 구속 · 여죄 수사',
-        content: '경찰은 최근 한 달간 부산진구 일대 무인매장에서 유사한 수법의 현금 절도 신고가 잇따르자 주변 CCTV 60여 대를 분석해 동선을 추적한 끝에 은신처에서 피의자를 검거했습니다.'
-      },
-      {
-        id: 'inc-9',
-        type: 'incident',
-        date: '2026-11-11',
-        dateLabel: '11월 11일 (어제)',
-        category: '교통사고',
-        district: '남구 대연동 (황령터널 입구)',
-        title: '황령터널 남구 방면 출구 인근서 시내버스·승용차 접촉사고… 승객 4명 병원 이송',
-        summary: '11일 오후 5시 40분경 부산 남구 대연동 황령터널 출구 내리막길에서 차선을 변경하던 승용차와 시내버스가 부딪혀 버스 승객 4명이 가벼운 통증을 호소해 인근 병원으로 이송됐습니다.',
-        source: '남부경찰서 · 국제신문',
-        sourceUrl: 'https://www.kookje.co.kr',
-        publishedAt: '11월 11일 18:20',
-        status: '부상자 경상 · 사고 처리 완료',
-        content: '경찰과 소방당국에 따르면 퇴근 시간대 황령터널을 빠져나오던 차량들이 합류 구간에서 접촉사고를 일으켰으며, 버스 내부 급정거로 승객 4명이 타박상을 입었습니다.'
-      },
-      {
-        id: 'inc-10',
-        type: 'incident',
-        date: '2026-11-11',
-        dateLabel: '11월 11일 (어제)',
-        category: '안전사고',
-        district: '동래구 온천동',
-        title: '동래구 온천동 오피스텔 신축 현장서 타워크레인 자재 결속 풀려… 인명피해 없어',
-        summary: '11일 오전 10시 30분경 부산 동래구 온천동 한 오피스텔 신축 공사장에서 인양 중이던 철근 다발 일부가 현장 내부 안전구역으로 떨어졌으나 작업자 통제가 이뤄져 인명피해는 발생하지 않았습니다.',
-        source: '동래구청 · MBC부산',
-        sourceUrl: 'https://busanmbc.co.kr',
-        publishedAt: '11월 11일 13:40',
-        status: '작업 일시 중지 · 안전점검 실시',
-        content: '동래구청 건축과와 고용노동부 부산동부지청은 사고 직후 해당 공정의 작업을 일시 중지시키고, 인양 장비 결속 상태와 낙하물 방지망 설치 적정성에 대한 긴급 안전점검을 실시했습니다.'
-      },
-      {
-        id: 'inc-11',
-        type: 'incident',
-        date: '2026-11-10',
-        dateLabel: '11월 10일 (그제)',
-        category: '화재',
-        district: '사하구 신평동',
-        title: '사하구 신평동 장림공단 인근 폐기물 재활용업체 야적장서 불… 2시간 만에 완진',
-        summary: '10일 오후 2시 15분경 부산 사하구 신평동의 한 자원순환시설 야적장에 쌓여 있던 폐플라스틱 더미에서 불이 나 소방 인력 90여 명과 장비 32대가 투입돼 2시간 만에 진화됐습니다.',
-        source: '사하소방서 · 부산일보',
-        sourceUrl: 'https://www.busan.com',
-        publishedAt: '11월 10일 16:30',
-        status: '완진 · 인명피해 없음',
-        content: '사하소방서는 야적장 내 압축 폐기물에서 자연발화 또는 마찰열로 불이 시작된 것으로 보고 있으며, 검은 연기가 다량 발생함에 따라 사하구청이 인근 주민들에게 창문 단속 안내 문자를 발송했습니다.'
-      },
-      {
-        id: 'inc-12',
-        type: 'incident',
-        date: '2026-11-10',
-        dateLabel: '11월 10일 (그제)',
-        category: '법원/치안',
-        district: '수영구 광안동',
-        title: '광안리 해변가서 분실 스마트폰·지갑 상습 절취한 30대 검거… 12건 여죄 확인',
-        summary: '부산수영경찰서는 주말 밤 광안리해수욕장 백사장과 수변공원 일대에서 술에 취해 잠든 시민들의 스마트폰과 지갑을 12차례에 걸쳐 훔친 30대 남성을 절도 혐의로 검거했습니다.',
-        source: '부산수영경찰서 · 뉴시스',
-        sourceUrl: 'https://www.newsis.com',
-        publishedAt: '11월 10일 14:15',
-        status: '피해품 일부 회수 · 불구속 입건',
-        content: '경찰은 해변 산책로 방범용 CCTV 추적과 장물 처분 경로 수사를 통해 피의자를 특정해 검거했으며, 피해품 7점을 회수해 피해자들에게 돌려줬습니다.'
       }
     ];
 
@@ -1094,7 +999,6 @@
 
     // 애플리케이션 상태 관리
     const INITIAL_DISASTER_LIMIT = 4;
-    const INITIAL_PRESS_LIMIT = 4;
     const state = {
       activeTab: 'disaster',
       selectedDistrict: '전체 구·군',
@@ -1105,130 +1009,13 @@
       selectedArticle: null,
       draftArticleTarget: null,
       lastManualFetchTime: 0,
-      isDisasterExpanded: false,
-      isPressExpanded: false,
       rejectedDisasters: [],
       serverBannerHeadline: '',
-      serverBannerSubtext: '',
-      cctvCategoryFilter: 'ALL',
-      selectedCctvIds: ['cctv-bs-1', 'cctv-bs-2'],
-      showRoadplusDirect: false
+      serverBannerSubtext: ''
     };
 
-    // --- 부산 권역 Roadplus · ITS 실시간 CCTV 데이터 ---
-    const BUSAN_CCTV_NODES = [
-      {
-        id: 'cctv-bs-1',
-        name: '경부선 부산영업소 (Busan TG)',
-        route: '경부고속도로 (1호선)',
-        category: 'expressway',
-        district: '금정구 노포동',
-        lat: 35.2678,
-        lng: 129.0911,
-        speed: '84 km/h',
-        status: '원활',
-        source: '한국도로공사 Roadplus',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-traffic-on-a-highway-at-night-42867-large.mp4'
-      },
-      {
-        id: 'cctv-bs-2',
-        name: '남해2지선 서부산IC',
-        route: '남해제2지선 (104호선)',
-        category: 'expressway',
-        district: '강서구 대저동',
-        lat: 35.1554,
-        lng: 128.9412,
-        speed: '32 km/h',
-        status: '지체',
-        source: '한국도로공사 Roadplus',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-heavy-traffic-on-a-highway-at-night-42866-large.mp4'
-      },
-      {
-        id: 'cctv-bs-3',
-        name: '부산외곽순환선 금정산터널',
-        route: '부산외곽순환선 (600호선)',
-        category: 'expressway',
-        district: '금정구 산성동',
-        lat: 35.2890,
-        lng: 129.0520,
-        speed: '92 km/h',
-        status: '원활',
-        source: '한국도로공사 Roadplus',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-traffic-moving-fast-on-a-highway-at-night-42865-large.mp4'
-      },
-      {
-        id: 'cctv-bs-4',
-        name: '부산외곽순환선 철마1터널',
-        route: '부산외곽순환선 (600호선)',
-        category: 'expressway',
-        district: '기장군 철마면',
-        lat: 35.2685,
-        lng: 129.1520,
-        speed: '78 km/h',
-        status: '주의',
-        source: '한국도로공사 Roadplus',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-cars-driving-on-a-multi-lane-highway-41549-large.mp4'
-      },
-      {
-        id: 'cctv-bs-5',
-        name: '동서고가로 진양·감전램프',
-        route: '부산도시고속도로',
-        category: 'city',
-        district: '부산진구 · 사상구',
-        lat: 35.1528,
-        lng: 129.0495,
-        speed: '26 km/h',
-        status: '서행',
-        source: '부산시 교통정보서비스(ITS)',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-time-lapse-of-traffic-on-a-bridge-at-night-42868-large.mp4'
-      },
-      {
-        id: 'cctv-bs-6',
-        name: '광안대교 남천동 방향 주탑',
-        route: '광안대로 (해상교량)',
-        category: 'city',
-        district: '수영구 · 해운대구',
-        lat: 35.1430,
-        lng: 129.1120,
-        speed: '74 km/h',
-        status: '원활',
-        source: '부산시설공단 · ITS',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-traffic-at-night-41551-large.mp4'
-      },
-      {
-        id: 'cctv-bs-7',
-        name: '낙동강 구포대교 수위감시',
-        route: '국도 14호선 · 하천감시',
-        category: 'river',
-        district: '북구 구포동',
-        lat: 35.2075,
-        lng: 128.9880,
-        speed: '수위 정상',
-        status: '정상',
-        source: '낙동강홍수통제소',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-rain-drops-falling-on-water-surface-41484-large.mp4'
-      },
-      {
-        id: 'cctv-bs-8',
-        name: '영도 남항 · 부산항대교 연안',
-        route: '부산항대교 · 연안감시',
-        category: 'river',
-        district: '영도구 · 남구',
-        lat: 35.0985,
-        lng: 129.0640,
-        speed: '파고 1.8m',
-        status: '너울주의',
-        source: '부산항만공사 · 해경',
-        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-waves-crashing-on-a-rocky-shore-under-a-grey-sky-41553-large.mp4'
-      }
-    ];
-
-    let busanCctvMap = null;
-    let busanCctvMarkers = [];
-
-    // --- 유틸리티 및 텍스트 정제 · 분류 헬퍼 함수 ---
     function escapeHtml(str = '') {
-      return String(str ?? '')
+      return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -1236,104 +1023,105 @@
         .replace(/'/g, '&#39;');
     }
 
-    function normalizeText(str = '') {
-      return String(str ?? '').replace(/\s+/g, ' ').trim();
-    }
-
-    function showToast(message) {
+    let toastTimer = null;
+    function showToast(msg) {
       const box = document.getElementById('toast-box');
       const msgEl = document.getElementById('toast-message');
       if (!box || !msgEl) return;
-      msgEl.textContent = message;
+      msgEl.textContent = msg;
       box.classList.remove('hidden');
-      clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(() => {
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
         box.classList.add('hidden');
-      }, 2800);
+      }, 2400);
     }
 
     function findArticleById(id) {
-      return (
-        DISASTER_ARTICLES.find((a) => a.id === id) ||
-        PRESS_RELEASE_ARTICLES.find((a) => a.id === id) ||
-        INCIDENT_ARTICLES.find((a) => a.id === id) ||
-        null
-      );
+      return [...DISASTER_ARTICLES, ...PRESS_RELEASE_ARTICLES, ...INCIDENT_ARTICLES].find((a) => a.id === id) || null;
     }
 
-    // 실시간 재해·재난 특보와 언론매체 보도자료를 중복 없이 통합 반환
-    function getCombinedDisasterAndPressArticles() {
-      const validDisasters = DISASTER_ARTICLES.filter(isStrictWeatherOrDisasterArticle);
-      const validPress = PRESS_RELEASE_ARTICLES.filter(isStrictWeatherOrDisasterArticle);
-      const combined = [...validDisasters];
-      const seenTitles = new Set(combined.map((item) => normalizeText(item.title)));
+    const GENERIC_TEXT_REGEX = /(보도된\s*재난[·ㆍ]?\s*안전\s*관련\s*주요\s*소식|안전\s*안내와\s*현장\s*상황을\s*확인하시기\s*바랍니다|관계\s*당국의\s*안전\s*안내)/;
 
-      validPress.forEach((pressItem) => {
-        const normalized = normalizeText(pressItem.title);
-        if (!seenTitles.has(normalized)) {
-          combined.push(pressItem);
-          seenTitles.add(normalized);
-        }
-      });
+    function normalizeText(t) {
+      return String(t || '').replace(/\s+/g, ' ').trim();
+    }
 
-      return combined;
+    function isGenericText(text, item) {
+      const t = normalizeText(text);
+      if (!t) return true;
+      if (GENERIC_TEXT_REGEX.test(t)) return true;
+      const others = [...DISASTER_ARTICLES, ...PRESS_RELEASE_ARTICLES, ...INCIDENT_ARTICLES].filter(
+        (a) => a !== item && a.id !== (item && item.id)
+      );
+      return others.some((a) => normalizeText(a.summary) === t || normalizeText(a.content) === t);
     }
 
     function getDisplaySummary(item) {
       if (!item) return '';
-      const summary = normalizeText(item.summary);
-      if (summary) return summary;
-      const content = normalizeText(item.content);
-      if (content) return content.length > 140 ? content.slice(0, 140) + '…' : content;
-      return `${item.district || '부산'} 지역 ${item.category || '안전'} 관련 주요 발표 내용입니다.`;
+      const rawSummary = normalizeText(item.summary);
+      if (rawSummary && !GENERIC_TEXT_REGEX.test(rawSummary)) return rawSummary;
+      const rawContent = normalizeText(item.content);
+      if (rawContent && !GENERIC_TEXT_REGEX.test(rawContent)) return rawContent;
+      if (rawSummary) return rawSummary;
+      if (rawContent) return rawContent;
+      return `${item.district ? `부산 ${item.district} 일대 ` : ''}${item.category || '안전'} 관련 세부 현황 및 현장 안내입니다.`;
     }
 
     function getDisplayContent(item) {
       if (!item) return '';
-      return normalizeText(item.content) || getDisplaySummary(item);
+      if (!isGenericText(item.content, item)) return normalizeText(item.content);
+      if (!isGenericText(item.summary, item)) return normalizeText(item.summary);
+      return '기사 상세 내용이 제공되지 않았습니다. 출처 링크에서 원문을 확인해 주세요.';
     }
 
     function classifyMediaDeskArticle(item) {
-      if (!item || !item.title) {
-        return { desk: 'reject', reason: '제목 누락' };
+      if (!item) return { desk: 'exclude', reason: '데이터 없음' };
+      const category = String(item.category || '');
+      const title = String(item.title || '');
+      const summary = String(item.summary || '');
+      const fullText = `${category} ${title} ${summary}`;
+      const titleCat = `${category} ${title}`;
+
+      const hasAviationDisaster = /(추락|불시착|동체착륙|기체결함|비상착륙|엔진화재|활주로 이탈|충돌)/.test(titleCat);
+      const nonNewsRegex = /(진에어|에어부산|대한항공|아시아나|제주항공|티웨이|이스타|항공편|취항|노선 확대|증편|특가|프로모션|할인|혁신기업|제조업|스타트업|벤처|투자유치|수출|무역|일자리|채용|축제|박람회|전시회|관광|문화행사|공연|MOU|협약|지원사업|공모|분양|어워드|수상|포럼|세미나|개최|육성|산업단지 조성|예산안|시의회|국비 확보|캠페인|설명회|간담회|업무협약|실적|영업이익|매출|주가|신제품|출시)/;
+      const excl = titleCat.match(nonNewsRegex);
+      if (!hasAviationDisaster && excl) {
+        return { desk: 'exclude', reason: `비재난 보도 제외: "${excl[0]}"` };
       }
-      const text = `${item.title} ${item.category || ''} ${item.summary || ''}`;
-      if (/(살인|절도|불법촬영|구속|항소|음주운전|추돌|화재|표류|추락|숨져|사망|검거)/.test(text) &&
-          !/(화재안전조사|화재예방|산불조심|풍랑|주의보|경보|도로 통제|차로 통제)/.test(text)) {
-        return { desk: 'incident', mappedCategory: item.category || '사건/치안' };
+
+      const incidentDeskRegex = /(음주운전|추돌|편의점 덮쳐|교통사고|차량 돌진|불법촬영|항소심|부산고법|법원|판결|징역|구속|입건|검거|절도|사기|폭행|살인|산업재해|추락사|끼임|감전|중대재해|다가구주택.*불|주택 지하층.*불|상가.*불|차량 화재)/;
+      const isLargeScaleDisaster = /(대형화재|산불|다중이용시설|대피령|재난대책본부|기상특보|주의보|경보|태풍|호우|풍랑|강풍|대설|한파|폭염|건조|지진|침수|범람|붕괴|유해물질|누출|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|싱크홀|땅꺼짐|낙석)/;
+
+      if (incidentDeskRegex.test(titleCat) && !isLargeScaleDisaster.test(titleCat)) {
+        let incCat = '사건/치안';
+        if (/(화재|불)/.test(titleCat)) incCat = '화재';
+        else if (/(교통|음주운전|추돌|돌진)/.test(titleCat)) incCat = '교통사고';
+        else if (/(산업재해|중대재해|추락|끼임)/.test(titleCat)) incCat = '산업재해';
+        else if (/(법원|고법|판결|항소|징역|불법촬영)/.test(titleCat)) incCat = '법원/치안';
+        return { desk: 'incident', reason: '사회부 사건·사고 데스크 자동 이관', mappedCategory: incCat };
       }
-      return { desk: 'disaster' };
+
+      const disasterDeskRegex = /(날씨|기상|예보|특보|주의보|경보|태풍|호우|폭우|강풍|풍랑|대설|폭설|한파|폭염|건조|황사|미세먼지|지진|해일|너울|산사태|침수|범람|홍수|가뭄|산불|화재안전|화재예방|폭발|붕괴|누출|유출|사회재난|자연재난|재난|재해|대피|도로통제|차로 통제|전면 통제|부분 통제|결항|단수|정전|낙석|싱크홀|땅꺼짐|감염병|방역)/;
+      if (disasterDeskRegex.test(fullText)) {
+        return { desk: 'disaster', reason: '재난안전 데스크 승인' };
+      }
+
+      return { desk: 'exclude', reason: '재해·재난 핵심 키워드 미충족' };
     }
 
     function isStrictWeatherOrDisasterArticle(item) {
       return classifyMediaDeskArticle(item).desk === 'disaster';
     }
 
-    // 메인 상단 '실시간 재해 · 재난 특보' 전용 판별 (기상청 · 부산 안전 ON · 지자체 공식 특보 위주)
-    function isOfficialKmaOrSafetyOnArticle(item) {
-      if (!isStrictWeatherOrDisasterArticle(item)) return false;
-      const src = `${item.source || ''} ${item.category || ''} ${item.title || ''}`;
-      // 일반 언론사 단독 보도는 하단 언론매체 보도자료 섹션으로 분리
-      const isMediaOnly =
-        /^\[보도/.test(item.title || '') ||
-        /(언론보도|보도자료)/.test(item.category || '') ||
-        (/(일보|신문|KNN|KBS|MBC|연합뉴스|뉴스1|뉴시스|YTN|SBS)/.test(item.source || '') &&
-          !/(기상청|부산 안전 ON|재난안전대책본부)/.test(item.source || ''));
-      if (isMediaOnly) return false;
-
-      return /(기상청|부산 안전 ON|부산광역시|산불방지대책본부|상수도사업본부|풍랑|특보|주의보|경보|도로통제|돌발|기상전망|해양)/.test(src);
-    }
-
-    function extractOfficialWeatherAdvisory(articles, fallbackHeadline = '', fallbackSubtext = '') {
+    function extractOfficialWeatherAdvisory(disasterList, fallbackHeadline, fallbackSubtext) {
+      const advisoryRegex = /((?:남해동부|부산앞바다|부산\s*전역|부산\s*내륙|부산\s*해안|부산|울산|경남)[^\s,·…]{0,14})?\s*(태풍|호우|대설|강풍|풍랑|한파|폭염|건조|황사|지진해일)\s*(주의보|경보)/g;
       const foundMap = new Map();
-      const advisoryRegex = /(부산[^\s,·()]*|남해동부[^\s,·()]*)\s*(풍랑|호우|강풍|태풍|대설|한파|폭염|건조|황사|해일)(주의보|경보)/g;
 
-      (articles || []).forEach((item) => {
-        const text = `${item.title || ''} ${item.summary || ''} ${item.content || ''}`;
+      (disasterList || []).forEach((item) => {
+        const text = `${item.title || ''} ${item.summary || ''}`;
         let match;
-        advisoryRegex.lastIndex = 0;
         while ((match = advisoryRegex.exec(text)) !== null) {
-          const region = match[1];
+          const region = (match[1] || '부산 권역').trim();
           const type = match[2];
           const level = match[3];
           if (/없음|해제/.test(text.slice(match.index, match.index + 35))) continue;
@@ -1377,6 +1165,29 @@
       };
     }
 
+    // --- 상단 특보 영역: 기상청 · 부산시 발표만 / 하단: 언론사별 보도 ---
+    const MEDIA_OUTLET_REGEX = /(부산일보|국제신문|KBS|MBC|KNN|연합뉴스|뉴스1|뉴시스|YTN|SBS|JTBC|CBS|노컷뉴스|한겨레|조선일보|중앙일보|동아일보|경향신문|매일신문|뉴스핌|[가-힣A-Za-z0-9]+(?:일보|신문|방송|뉴스))/;
+    const OFFICIAL_ORG_REGEX = /(기상청|부산광역시|부산시|부산\s*안전\s*ON|재난안전대책본부)/;
+
+    function splitSourceParts(item) {
+      return String((item && item.source) || '')
+        .split(/[·,\/]/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+    }
+
+    function getMediaOutletName(item) {
+      const parts = splitSourceParts(item);
+      const found = parts.find((part) => MEDIA_OUTLET_REGEX.test(part) && !OFFICIAL_ORG_REGEX.test(part));
+      return found || '';
+    }
+
+    // 기상청 또는 부산시(부산광역시·부산 안전 ON 등)가 출처인 공식 특보인지 판별
+    function isOfficialKmaOrBusan(item) {
+      if (getMediaOutletName(item)) return false;
+      return OFFICIAL_ORG_REGEX.test(String((item && item.source) || ''));
+    }
+
     function getInstitutionKeyForArticle(item) {
       const src = `${item.source || ''} ${item.category || ''} ${item.title || ''}`;
       if (/(기상청|풍랑|태풍|호우|강풍|대설|한파|폭염|건조|황사|지진|해일|너울|해양)/.test(src)) {
@@ -1388,7 +1199,6 @@
       return 'BUSAN_CITY';
     }
 
-    // 위험 등급별 스타일 반환
     function getSeverityStyle(severity) {
       switch (severity) {
         case '긴급':
@@ -1418,7 +1228,6 @@
       }
     }
 
-    // 30초 단신 기사 및 연계기사 아이템 생성
     function generateShortNewsDraft(article) {
       if (!article) return null;
 
@@ -1486,24 +1295,6 @@
             point: '관할 구청 재난안전과 및 적십자사 구호 물품 지원 취재'
           }
         ];
-      } else if (article.category.includes('산업재해')) {
-        followUpItems = [
-          {
-            tag: '중대재해 추적',
-            title: '강서구 미음·녹산산단 중대재해 잇따라… 금속가공 사업장 크레인·중량물 안전수칙 실태',
-            point: '고용노동부 부산북부지청 작업중지 명령 및 특별감독 결과 추적'
-          },
-          {
-            tag: '구조 진단',
-            title: '50인 미만 중소 제조업체 안전관리자 선임 및 중량물 인양 작업 표준절차 준수 여부',
-            point: '산업안전보건공단 부산광역본부 현장 컨설팅 실효성 점검'
-          },
-          {
-            tag: '유가족·제도',
-            title: '부산 지역 최근 1년 산재 사망사고 유형 분석과 재발 방지 대책',
-            point: '낙하·끼임 사고 집중 발생 업종에 대한 지자체·노동청 합동 점검 계획'
-          }
-        ];
       } else {
         followUpItems = [
           {
@@ -1527,7 +1318,6 @@
       return { shortScript, estimatedSeconds, charCount, followUpItems };
     }
 
-    // 북마크 토글
     function toggleBookmark(id) {
       if (state.bookmarkedIds.includes(id)) {
         state.bookmarkedIds = state.bookmarkedIds.filter((item) => item !== id);
@@ -1542,7 +1332,6 @@
       }
     }
 
-    // 기사 전문 모달 열기 (상세 모달에는 시민 행동 요령 표시)
     function openArticleModal(id) {
       const article = findArticleById(id);
       if (!article) return;
@@ -1656,11 +1445,9 @@
 
     function closeArticleModal() {
       state.selectedArticle = null;
-      const modal = document.getElementById('article-modal');
-      if (modal) modal.classList.add('hidden');
+      document.getElementById('article-modal').classList.add('hidden');
     }
 
-    // 30초 단신 기사 작성 & 연계기사 아이템 모달 열기
     function openDraftModal(id) {
       const article = findArticleById(id);
       if (!article) return;
@@ -1669,7 +1456,6 @@
       const modal = document.getElementById('draft-modal');
       const box = document.getElementById('draft-modal-box');
       const draftData = generateShortNewsDraft(article);
-      if (!modal || !box || !draftData) return;
 
       box.innerHTML = `
         <div class="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between sticky top-0 z-10">
@@ -1783,8 +1569,7 @@
 
     function closeDraftModal() {
       state.draftArticleTarget = null;
-      const modal = document.getElementById('draft-modal');
-      if (modal) modal.classList.add('hidden');
+      document.getElementById('draft-modal').classList.add('hidden');
     }
 
     function copyDraftText() {
@@ -1834,7 +1619,7 @@
               xmlns="http://www.w3.org/TR/REC-html40">
         <head>
           <meta charset="utf-8" />
-          <title>Btv 부산재난방송 단신 기사</title>
+          <title>Btv 부산 안전 브리핑 단신 기사</title>
           <style>
             body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; line-height: 1.65; color: #111827; }
             h1 { font-size: 16pt; border-bottom: 2px solid #059669; padding-bottom: 6px; margin-bottom: 12px; }
@@ -1844,7 +1629,7 @@
           </style>
         </head>
         <body>
-          <h1>[Btv 부산재난방송] 30초 단신 기사 원고</h1>
+          <h1>[Btv 부산 안전 브리핑] 30초 단신 기사 원고</h1>
           <div class="meta">
             <strong>원문 제목:</strong> ${escapeHtml(article.title)}<br/>
             <strong>발생 지역:</strong> 부산 ${escapeHtml(article.district)} |
@@ -1874,17 +1659,17 @@
     }
 
     function filterArticles(list) {
-      return (list || []).filter((article) => {
+      return list.filter((article) => {
         const matchDistrict =
-          state.selectedDistrict === '전체 구·군' || (article.district || '').includes(state.selectedDistrict);
+          state.selectedDistrict === '전체 구·군' || article.district.includes(state.selectedDistrict);
         const q = state.searchQuery.trim();
         const matchQuery =
           !q ||
-          (article.title || '').includes(q) ||
-          (article.summary || '').includes(q) ||
-          (article.district || '').includes(q) ||
-          (article.category || '').includes(q) ||
-          (article.source || '').includes(q);
+          article.title.includes(q) ||
+          article.summary.includes(q) ||
+          article.district.includes(q) ||
+          article.category.includes(q) ||
+          article.source.includes(q);
         const matchBookmark = !state.showBookmarksOnly || state.bookmarkedIds.includes(article.id);
         return matchDistrict && matchQuery && matchBookmark;
       });
@@ -1984,19 +1769,80 @@
       if (frame) frame.src = 'about:blank';
     }
 
-    // 전체 UI 렌더링 함수
-    function renderAll() {
-      const bookmarkBtn = document.getElementById('btn-toggle-bookmarks');
-      const bookmarkCountEl = document.getElementById('bookmark-count');
-      if (bookmarkCountEl) bookmarkCountEl.textContent = state.bookmarkedIds.length;
-      if (bookmarkBtn) {
-        bookmarkBtn.className = state.showBookmarksOnly
-          ? 'flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition bg-amber-500 text-slate-950 border-amber-400'
-          : 'flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
+    // 전체 UI 렌더링
+    // 언론사별 재해·재난 보도 리스트 (최하단)
+    function renderPressByOutlet() {
+      const grid = document.getElementById('press-by-outlet-grid');
+      const countEl = document.getElementById('press-outlet-count');
+      if (!grid) return;
+
+      const pressItems = filterArticles(
+        getCombinedDisasterAndPressArticles().filter((item) => getMediaOutletName(item))
+      );
+
+      const groups = new Map();
+      pressItems.forEach((item) => {
+        const outlet = getMediaOutletName(item);
+        if (!groups.has(outlet)) groups.set(outlet, []);
+        groups.get(outlet).push(item);
+      });
+
+      const sorted = Array.from(groups.entries()).sort(
+        (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'ko')
+      );
+
+      if (countEl) countEl.textContent = `${sorted.length}개 언론사 · ${pressItems.length}건`;
+
+      if (sorted.length === 0) {
+        grid.className = 'block';
+        grid.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
+            <p class="text-slate-300 font-bold text-sm">표시할 언론사 재해·재난 보도가 없습니다.</p>
+            <p class="text-slate-500 text-xs mt-1">검색어·지역 필터를 바꾸거나 잠시 후 다시 확인해 주세요.</p>
+          </div>`;
+        return;
       }
 
-      // 1. 탭 버튼 & 뷰 전환
-      const TAB_BASE = 'flex-1 sm:flex-none sm:w-56 py-3 px-4 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap ';
+      grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+      grid.innerHTML = sorted
+        .map(([outlet, items]) => `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-slate-800/60 border-b border-slate-800">
+              <span class="flex items-center space-x-2 text-sm font-extrabold text-amber-300">
+                <i data-lucide="newspaper" class="w-4 h-4"></i>
+                <span>${escapeHtml(outlet)}</span>
+              </span>
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-900 text-slate-300 border border-slate-700">${items.length}건</span>
+            </div>
+            <ul class="divide-y divide-slate-800/80">
+              ${items
+                .map((item) => `
+                <li>
+                  <button type="button" onclick="openArticleModal('${item.id}')" class="w-full text-left px-4 py-3 hover:bg-slate-800/50 transition">
+                    <p class="text-sm font-bold text-slate-100 leading-snug">${escapeHtml(String(item.title || '').replace(/^\[[^\]]+\]\s*/, ''))}</p>
+                    <p class="mt-1 text-[11px] text-slate-400 flex items-center space-x-2">
+                      <span class="flex items-center"><i data-lucide="map-pin" class="w-3 h-3 mr-1"></i>${escapeHtml(item.district || '')}</span>
+                      <span class="flex items-center"><i data-lucide="clock" class="w-3 h-3 mr-1"></i>${escapeHtml(item.publishedAt || item.dateLabel || '')}</span>
+                    </p>
+                  </button>
+                </li>`)
+                .join('')}
+            </ul>
+          </div>`)
+        .join('');
+    }
+
+    function renderAll() {
+      const bookmarkBtn = document.getElementById('btn-toggle-bookmarks');
+      document.getElementById('bookmark-count').textContent = state.bookmarkedIds.length;
+      if (state.showBookmarksOnly) {
+        bookmarkBtn.className = 'flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition bg-amber-500 text-slate-950 border-amber-400';
+      } else {
+        bookmarkBtn.className = 'flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
+      }
+
+      // 2. 탭 버튼 & 뷰 전환
+      const TAB_BASE = 'flex-1 sm:flex-none sm:w-48 py-3 px-3.5 rounded-t-xl font-bold text-sm flex items-center justify-center space-x-2 border-b-2 transition whitespace-nowrap ';
       const TAB_IDLE = TAB_BASE + 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-800/50';
       const TAB_ACTIVE = {
         disaster: TAB_BASE + 'bg-rose-950/40 text-rose-300 border-rose-500',
@@ -2006,37 +1852,46 @@
       };
       ['disaster', 'incident', 'satellite', 'cctv'].forEach((key) => {
         const isActive = state.activeTab === key;
-        const tabEl = document.getElementById('tab-' + key);
-        const viewEl = document.getElementById('view-' + key);
-        if (tabEl) tabEl.className = isActive ? TAB_ACTIVE[key] : TAB_IDLE;
-        if (viewEl) viewEl.classList.toggle('hidden', !isActive);
+        document.getElementById('tab-' + key).className = isActive ? TAB_ACTIVE[key] : TAB_IDLE;
+        document.getElementById('view-' + key).classList.toggle('hidden', !isActive);
       });
 
       const isSat = state.activeTab === 'satellite';
       const isCctv = state.activeTab === 'cctv';
       const hideNewsSections = isSat || isCctv;
-      const searchBar = document.getElementById('search-filter-bar');
-      const catSection = document.getElementById('disaster-category-section');
-      const pressSection = document.getElementById('press-release-section');
-      if (searchBar) searchBar.classList.toggle('hidden', hideNewsSections);
-      if (catSection) catSection.classList.toggle('hidden', hideNewsSections);
-      if (pressSection) pressSection.classList.toggle('hidden', hideNewsSections);
-
+      document.getElementById('search-filter-bar').classList.toggle('hidden', hideNewsSections);
+      document.getElementById('disaster-category-section').classList.toggle('hidden', hideNewsSections);
+      document.getElementById('press-by-outlet-section').classList.toggle('hidden', state.activeTab !== 'disaster');
       if (isSat) {
         loadSatelliteFrames(false);
       } else {
         stopSatelliteAutoRefresh();
       }
-      if (isCctv && typeof renderCctvTab === 'function') {
-        renderCctvTab();
+      if (isCctv) {
+        initCctvModuleOnce();
       }
 
-      // 2. 실시간 재해·재난 특보 (기상청 · 부산 안전 ON 공식 소식 위주)
-      const officialDisasters = DISASTER_ARTICLES.filter(isOfficialKmaOrSafetyOnArticle);
-      const validDisasters = DISASTER_ARTICLES.filter(isStrictWeatherOrDisasterArticle);
+      // 필터 제외 건수 라벨
+      const rejLabel = document.getElementById('disaster-rejected-label');
+      if (rejLabel) {
+        const rej = state.rejectedDisasters || [];
+        if (rej.length > 0) {
+          rejLabel.textContent = `데스크 분류·제외 ${rej.length}건`;
+          rejLabel.title = rej.map((r) => `• ${r.title}\n   → ${r.reason}`).join('\n');
+          rejLabel.classList.remove('hidden');
+        } else {
+          rejLabel.classList.add('hidden');
+        }
+      }
+
+      // 3. 재해·재난 카드 렌더링
+      // 상단 "실시간 재해·재난 특보"는 기상청·부산시 발표만 표출
+      const validDisasters = DISASTER_ARTICLES
+        .filter(isStrictWeatherOrDisasterArticle)
+        .filter(isOfficialKmaOrBusan);
 
       const advisoryInfo = extractOfficialWeatherAdvisory(
-        officialDisasters.length > 0 ? officialDisasters : validDisasters,
+        validDisasters,
         state.serverBannerHeadline,
         state.serverBannerSubtext
       );
@@ -2047,193 +1902,72 @@
       if (headEl) headEl.textContent = advisoryInfo.headline;
       if (subEl) subEl.textContent = advisoryInfo.subtext;
 
-      const filteredDisasters = filterArticles(officialDisasters.length > 0 ? officialDisasters : validDisasters);
-      const disBadge = document.getElementById('disaster-tab-badge');
-      if (disBadge) disBadge.textContent = officialDisasters.length || validDisasters.length;
-
+      const filteredDisasters = filterArticles(validDisasters);
+      document.getElementById('disaster-tab-badge').textContent = validDisasters.length;
       const disContainer = document.getElementById('disaster-list');
       const headerMoreBtn = document.getElementById('btn-header-disaster-more');
       const headerMoreLabel = document.getElementById('header-disaster-more-label');
       const headerMoreIcon = document.getElementById('header-disaster-more-icon');
 
-      if (disContainer) {
-        if (filteredDisasters.length === 0) {
-          disContainer.className = 'block';
-          if (headerMoreBtn) headerMoreBtn.classList.add('hidden');
-          disContainer.innerHTML = `
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-1.5">
-              <p class="text-slate-200 font-bold text-sm">
-                선택한 조건에 해당하는 기상청 · 부산 안전 ON 특보가 없습니다.
-              </p>
-              <p class="text-slate-400 text-xs">
-                필터 조건을 초기화하거나 다른 지역을 선택해 보세요.
-              </p>
-            </div>
-          `;
-        } else {
-          const visibleDisasters = filteredDisasters.slice(0, INITIAL_DISASTER_LIMIT);
-          const totalCombinedCount = getCombinedDisasterAndPressArticles().length;
+      if (filteredDisasters.length === 0) {
+        disContainer.className = 'block';
+        if (headerMoreBtn) headerMoreBtn.classList.add('hidden');
+        const isFiltered =
+          state.selectedDistrict !== '전체 구·군' ||
+          state.searchQuery.trim() !== '' ||
+          state.showBookmarksOnly;
+        disContainer.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-1.5">
+            <p class="text-slate-200 font-bold text-sm">
+              ${isFiltered ? '선택한 검색 조건에 해당하는 날씨·재해·재난 특보가 없습니다.' : '현재 기상청·부산시가 발표한 재해·재난 특보가 없습니다.'}
+            </p>
+            <p class="text-slate-400 text-xs">
+              ${isFiltered ? '필터 조건을 초기화하거나 다른 지역을 선택해 보세요.' : '기상특보나 재난·안전 통제 소식이 접수되면 즉시 표출됩니다.'}
+            </p>
+          </div>
+        `;
+      } else {
+        const visibleDisasters = filteredDisasters.slice(0, INITIAL_DISASTER_LIMIT);
+        const totalCombinedCount = getCombinedDisasterAndPressArticles().length;
 
-          if (headerMoreBtn) {
-            headerMoreBtn.classList.remove('hidden');
-            if (headerMoreLabel) headerMoreLabel.textContent = `더보기 · 전체 특보·보도 (${totalCombinedCount}건)`;
-            if (headerMoreIcon) headerMoreIcon.setAttribute('data-lucide', 'external-link');
-          }
-
-          disContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
-          disContainer.innerHTML = visibleDisasters
-            .map((item) => {
-              const style = getSeverityStyle(item.severity);
-              const isBookmarked = state.bookmarkedIds.includes(item.id);
-              return `
-                <article
-                  onclick="openArticleModal('${item.id}')"
-                  class="rounded-2xl border-2 p-5 transition cursor-pointer hover:-translate-y-0.5 shadow-lg flex flex-col justify-between ${style.cardBorder}"
-                >
-                  <div>
-                    <div class="flex items-center justify-between gap-2 mb-3">
-                      <div class="flex items-center space-x-2">
-                        <span class="px-2.5 py-1 rounded-xl text-xs font-black border flex items-center space-x-1.5 ${style.badge}">
-                          <span class="w-2 h-2 rounded-full ${style.dot}"></span>
-                          <span>${escapeHtml(item.severity || '주의')}</span>
-                        </span>
-                        <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-800 text-slate-200 border border-slate-700">
-                          ${escapeHtml(item.category)}
-                        </span>
-                      </div>
-
-                      <div class="flex items-center space-x-1.5">
-                        <button
-                          type="button"
-                          onclick="event.stopPropagation(); toggleBookmark('${item.id}')"
-                          class="p-1.5 rounded-xl border transition ${
-                            isBookmarked
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                              : 'bg-slate-800/70 border-slate-700 text-slate-400 hover:text-white'
-                          }"
-                          title="기사 저장"
-                        >
-                          <i data-lucide="bookmark" class="w-4 h-4"></i>
-                        </button>
-
-                        <button
-                          type="button"
-                          onclick="event.stopPropagation(); openDraftModal('${item.id}')"
-                          class="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow transition"
-                          title="30초 단신 기사작성"
-                        >
-                          <i data-lucide="file-edit" class="w-3.5 h-3.5"></i>
-                          <span>기사작성</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center justify-between text-xs font-bold text-rose-300 mb-2">
-                      <span class="flex items-center space-x-1">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-                        <span>${escapeHtml(item.district)}</span>
-                      </span>
-                      <span class="text-slate-400 font-medium">${escapeHtml(item.dateLabel)}</span>
-                    </div>
-
-                    <h4 class="text-lg font-extrabold text-white leading-snug mb-2.5">
-                      ${escapeHtml(item.title)}
-                    </h4>
-
-                    <p class="text-sm text-slate-300 leading-relaxed line-clamp-3 mb-4">
-                      ${escapeHtml(getDisplaySummary(item))}
-                    </p>
-                  </div>
-
-                  <div class="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs text-slate-400">
-                    <div class="flex items-center space-x-2">
-                      <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-200 font-bold border border-slate-700">
-                        출처: ${escapeHtml(item.source)}
-                      </span>
-                      <span class="flex items-center">
-                        <i data-lucide="clock" class="w-3 h-3 mr-1"></i>
-                        ${escapeHtml(item.publishedAt)}
-                      </span>
-                    </div>
-                    <span class="text-rose-400 font-bold flex items-center shrink-0">
-                      전문 보기 <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                    </span>
-                  </div>
-                </article>
-              `;
-            })
-            .join('');
+        if (headerMoreBtn) {
+          headerMoreBtn.classList.remove('hidden');
+          headerMoreBtn.disabled = false;
+          headerMoreBtn.className = 'inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/35 text-rose-200 hover:text-white border border-rose-500/50 text-xs font-bold transition shadow-sm cursor-pointer';
+          headerMoreLabel.textContent = `더보기 · 언론사 기사 포함 (${totalCombinedCount}건)`;
+          if (headerMoreIcon) headerMoreIcon.setAttribute('data-lucide', 'external-link');
         }
-      }
 
-      // 3. 사건·사고 리스트 렌더링
-      const filteredIncidents = filterArticles(INCIDENT_ARTICLES);
-      const incCountEl = document.getElementById('incident-count');
-      const incBadgeEl = document.getElementById('incident-tab-badge');
-      if (incCountEl) incCountEl.textContent = filteredIncidents.length;
-      if (incBadgeEl) incBadgeEl.textContent = INCIDENT_ARTICLES.length;
-      const incContainer = document.getElementById('incident-list');
-
-      if (incContainer) {
-        if (filteredIncidents.length === 0) {
-          incContainer.innerHTML = `
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center text-slate-400 text-sm">
-              선택한 조건에 해당하는 사건·사고 기사가 없습니다.
-            </div>
-          `;
-        } else {
-          incContainer.innerHTML = filteredIncidents
-            .map((item) => {
-              const isBookmarked = state.bookmarkedIds.includes(item.id);
-              return `
-                <article
-                  onclick="openArticleModal('${item.id}')"
-                  class="bg-slate-900 border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-4 sm:p-5 transition cursor-pointer shadow-md"
-                >
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="space-y-2 flex-1 min-w-0">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                          ${escapeHtml(item.category)}
-                        </span>
-                        <span class="text-xs font-semibold text-slate-300 flex items-center">
-                          <i data-lucide="map-pin" class="w-3.5 h-3.5 mr-1 text-indigo-400"></i>
-                          부산 ${escapeHtml(item.district)}
-                        </span>
-                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                          ${escapeHtml(item.status || '')}
-                        </span>
-                        <span class="text-xs text-slate-400">${escapeHtml(item.dateLabel)}</span>
-                      </div>
-
-                      <h4 class="text-base sm:text-lg font-bold text-white leading-snug">
-                        ${escapeHtml(item.title)}
-                      </h4>
-
-                      <p class="text-sm text-slate-400 leading-relaxed line-clamp-2">
-                        ${escapeHtml(getDisplaySummary(item))}
-                      </p>
-
-                      <div class="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
-                        <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 font-semibold border border-slate-700">
-                          출처: ${escapeHtml(item.source)}
-                        </span>
-                        <span>·</span>
-                        <span class="flex items-center">
-                          <i data-lucide="clock" class="w-3 h-3 mr-1"></i>
-                          ${escapeHtml(item.publishedAt)}
-                        </span>
-                      </div>
+        disContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+        disContainer.innerHTML = visibleDisasters
+          .map((item) => {
+            const style = getSeverityStyle(item.severity);
+            const isBookmarked = state.bookmarkedIds.includes(item.id);
+            return `
+              <article
+                onclick="openArticleModal('${item.id}')"
+                class="rounded-2xl border-2 p-5 transition cursor-pointer hover:-translate-y-0.5 shadow-lg flex flex-col justify-between ${style.cardBorder}"
+              >
+                <div>
+                  <div class="flex items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center space-x-2">
+                      <span class="px-2.5 py-1 rounded-xl text-xs font-black border flex items-center space-x-1.5 ${style.badge}">
+                        <span class="w-2 h-2 rounded-full ${style.dot}"></span>
+                        <span>${escapeHtml(item.severity || '주의')}</span>
+                      </span>
+                      <span class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-800 text-slate-200 border border-slate-700">
+                        ${escapeHtml(item.category)}
+                      </span>
                     </div>
 
-                    <div class="flex items-center space-x-1.5 shrink-0">
+                    <div class="flex items-center space-x-1.5">
                       <button
                         type="button"
                         onclick="event.stopPropagation(); toggleBookmark('${item.id}')"
-                        class="p-2 rounded-xl border transition ${
+                        class="p-1.5 rounded-xl border transition ${
                           isBookmarked
                             ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                            : 'bg-slate-800/70 border-slate-700 text-slate-400 hover:text-white'
                         }"
                         title="기사 저장"
                       >
@@ -2243,7 +1977,7 @@
                       <button
                         type="button"
                         onclick="event.stopPropagation(); openDraftModal('${item.id}')"
-                        class="flex items-center space-x-1 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow transition"
+                        class="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow transition"
                         title="30초 단신 기사작성"
                       >
                         <i data-lucide="file-edit" class="w-3.5 h-3.5"></i>
@@ -2251,283 +1985,393 @@
                       </button>
                     </div>
                   </div>
-                </article>
-              `;
-            })
-            .join('');
-        }
-      }
 
-      // 4. 하단 공공기관별 공식 재난·안전 현황 렌더링
-      const catBtnsContainer = document.getElementById('disaster-type-filter-buttons');
-      if (catBtnsContainer) {
-        const allBtnActive = state.selectedDisasterCategory === 'ALL';
-        let catFilterHtml = `
-          <button
-            type="button"
-            onclick="setDisasterCategoryFilter('ALL')"
-            class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-              allBtnActive
-                ? 'bg-sky-500 text-slate-950 border-sky-400'
-                : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-            }"
-          >
-            전체 기관
-          </button>
-        `;
-        PUBLIC_INSTITUTION_GROUPS.forEach((grp) => {
-          const isActive = state.selectedDisasterCategory === grp.key;
-          catFilterHtml += `
-            <button
-              type="button"
-              onclick="setDisasterCategoryFilter('${grp.key}')"
-              class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-                isActive
-                  ? 'bg-sky-500 text-slate-950 border-sky-400'
-                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-              }"
-            >
-              ${escapeHtml(grp.agencyName)}
-            </button>
-          `;
-        });
-        catBtnsContainer.innerHTML = catFilterHtml;
-      }
-
-      const categoryGrid = document.getElementById('disaster-category-grid');
-      if (categoryGrid) {
-        const visibleGroups = PUBLIC_INSTITUTION_GROUPS.filter(
-          (g) => state.selectedDisasterCategory === 'ALL' || state.selectedDisasterCategory === g.key
-        );
-
-        categoryGrid.className =
-          visibleGroups.length === 1 ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-3 gap-4';
-
-        categoryGrid.innerHTML = visibleGroups
-          .map((group) => {
-            const matchedLive = validDisasters.filter(
-              (item) => getInstitutionKeyForArticle(item) === group.key
-            );
-            const displayItems = matchedLive.length > 0 ? matchedLive : group.defaultItems;
-            const totalCount = displayItems.length;
-            return `
-              <div class="bg-slate-900/90 border ${group.borderClass} rounded-2xl p-4 flex flex-col justify-between space-y-3">
-                <div class="space-y-3">
-                  <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
-                    <span class="text-sm font-extrabold ${group.headerTextClass} truncate">
-                      ${escapeHtml(group.agencyName)}
+                  <div class="flex items-center justify-between text-xs font-bold text-rose-300 mb-2">
+                    <span class="flex items-center space-x-1">
+                      <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                      <span>${escapeHtml(item.district)}</span>
                     </span>
-                    <div class="flex items-center space-x-1.5 shrink-0">
-                      <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md ${group.badgeClass}">
-                        ${escapeHtml(group.badgeText)}
-                      </span>
-                      <button
-                        type="button"
-                        onclick="openAgencyListModal('${group.key}')"
-                        class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-                      >
-                        <span>더보기</span>
-                        <i data-lucide="chevron-right" class="w-3 h-3"></i>
-                      </button>
-                    </div>
+                    <span class="text-slate-400 font-medium">${escapeHtml(item.dateLabel)}</span>
                   </div>
 
-                  <div class="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                    ${escapeHtml(group.officialSummary)}
-                  </div>
+                  <h4 class="text-lg font-extrabold text-white leading-snug mb-2.5">
+                    ${escapeHtml(item.title)}
+                  </h4>
 
-                  <ul class="space-y-2">
-                    ${displayItems
-                      .slice(0, 2)
-                      .map((item) => {
-                        const clickable = Boolean(findArticleById(item.id));
-                        return `
-                          <li
-                            ${clickable ? `onclick="openArticleModal('${item.id}')"` : ''}
-                            class="p-2.5 rounded-xl bg-slate-950/70 ${clickable ? 'hover:bg-slate-800/80 cursor-pointer' : ''} border border-slate-800/90 transition"
-                          >
-                            <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-                              <span class="font-semibold text-slate-300 truncate">${escapeHtml(item.district)}</span>
-                              <span class="shrink-0">${escapeHtml(item.publishedAt)}</span>
-                            </div>
-                            <p class="text-xs font-bold text-slate-100 leading-snug line-clamp-2">
-                              ${escapeHtml(item.title)}
-                            </p>
-                          </li>
-                        `;
-                      })
-                      .join('')}
-                  </ul>
+                  <p class="text-sm text-slate-300 leading-relaxed line-clamp-3 mb-4">
+                    ${escapeHtml(getDisplaySummary(item))}
+                  </p>
                 </div>
 
-                <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                  <span class="text-[11px] text-slate-500">공식 발표 (${totalCount}건)</span>
-                  <div class="flex items-center space-x-3">
-                    <button
-                      type="button"
-                      onclick="openAgencyListModal('${group.key}')"
-                      class="inline-flex items-center space-x-0.5 text-xs font-bold text-slate-300 hover:text-white transition"
-                    >
-                      <span>기사 목록</span>
-                      <i data-lucide="list" class="w-3 h-3"></i>
-                    </button>
-                    <a
-                      href="${escapeHtml(group.portalUrl)}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="inline-flex items-center space-x-1 text-xs font-bold ${group.headerTextClass} hover:underline"
-                    >
-                      <span>${escapeHtml(group.portalName)}</span>
-                      <i data-lucide="external-link" class="w-3 h-3"></i>
-                    </a>
+                <div class="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs text-slate-400">
+                  <div class="flex items-center space-x-2">
+                    <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-200 font-bold border border-slate-700">
+                      출처: ${escapeHtml(item.source)}
+                    </span>
+                    <span class="flex items-center">
+                      <i data-lucide="clock" class="w-3 h-3 mr-1"></i>
+                      ${escapeHtml(item.publishedAt)}
+                    </span>
                   </div>
+                  <span class="text-rose-400 font-bold flex items-center shrink-0">
+                    전문 보기 <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                  </span>
                 </div>
-              </div>
+              </article>
             `;
           })
           .join('');
       }
 
-      // 5. 최하단 언론매체 재난·안전 보도자료 리스트 렌더링
-      const validPress = PRESS_RELEASE_ARTICLES.filter(isStrictWeatherOrDisasterArticle);
-      const filteredPress = filterArticles(validPress);
-      const pressCountEl = document.getElementById('press-release-count');
-      const pressListEl = document.getElementById('press-release-list');
-      if (pressCountEl) pressCountEl.textContent = filteredPress.length;
+      renderPressByOutlet();
 
-      if (pressListEl) {
-        if (filteredPress.length === 0) {
-          pressListEl.className = 'block';
-          pressListEl.innerHTML = `
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm">
-              선택한 조건에 해당하는 언론매체 보도자료가 없습니다.
-            </div>
-          `;
-        } else {
-          pressListEl.className = 'grid grid-cols-1 md:grid-cols-2 gap-3.5';
-          pressListEl.innerHTML = filteredPress
-            .slice(0, 6)
-            .map((item) => {
-              const isBookmarked = state.bookmarkedIds.includes(item.id);
-              return `
-                <article
-                  onclick="openArticleModal('${item.id}')"
-                  class="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 transition cursor-pointer flex flex-col justify-between space-y-2.5"
-                >
-                  <div class="space-y-2">
-                    <div class="flex items-center justify-between gap-2">
-                      <div class="flex items-center space-x-1.5 min-w-0">
-                        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
-                          ${escapeHtml(item.category)}
-                        </span>
-                        <span class="text-xs text-slate-400 truncate">${escapeHtml(item.district)}</span>
-                      </div>
+      // 4. 사건·사고 리스트 렌더링
+      const filteredIncidents = filterArticles(INCIDENT_ARTICLES);
+      document.getElementById('incident-count').textContent = filteredIncidents.length;
+      document.getElementById('incident-tab-badge').textContent = INCIDENT_ARTICLES.length;
+      const incContainer = document.getElementById('incident-list');
 
-                      <div class="flex items-center space-x-1 shrink-0">
-                        <button
-                          type="button"
-                          onclick="event.stopPropagation(); toggleBookmark('${item.id}')"
-                          class="p-1.5 rounded-lg border transition ${
-                            isBookmarked
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                          }"
-                          title="기사 저장"
-                        >
-                          <i data-lucide="bookmark" class="w-3.5 h-3.5"></i>
-                        </button>
-                        <button
-                          type="button"
-                          onclick="event.stopPropagation(); openDraftModal('${item.id}')"
-                          class="px-2 py-1 rounded-lg text-[11px] font-bold bg-emerald-600/90 hover:bg-emerald-500 text-white transition"
-                        >
-                          기사작성
-                        </button>
-                      </div>
+      if (filteredIncidents.length === 0) {
+        incContainer.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center text-slate-400 text-sm">
+            선택한 조건에 해당하는 사건·사고 기사가 없습니다.
+          </div>
+        `;
+      } else {
+        incContainer.innerHTML = filteredIncidents
+          .map((item) => {
+            const isBookmarked = state.bookmarkedIds.includes(item.id);
+            return `
+              <article
+                onclick="openArticleModal('${item.id}')"
+                class="bg-slate-900 border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-4 sm:p-5 transition cursor-pointer shadow-md"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="space-y-2 flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                        ${escapeHtml(item.category)}
+                      </span>
+                      <span class="text-xs font-semibold text-slate-300 flex items-center">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5 mr-1 text-indigo-400"></i>
+                        부산 ${escapeHtml(item.district)}
+                      </span>
+                      <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                        ${escapeHtml(item.status)}
+                      </span>
+                      <span class="text-xs text-slate-400">${escapeHtml(item.dateLabel)}</span>
                     </div>
 
-                    <h4 class="text-sm sm:text-base font-extrabold text-white leading-snug line-clamp-2">
+                    <h4 class="text-base sm:text-lg font-bold text-white leading-snug">
                       ${escapeHtml(item.title)}
                     </h4>
 
-                    <p class="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                    <p class="text-sm text-slate-400 leading-relaxed line-clamp-2">
                       ${escapeHtml(getDisplaySummary(item))}
                     </p>
+
+                    <div class="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                      <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 font-semibold border border-slate-700">
+                        출처: ${escapeHtml(item.source)}
+                      </span>
+                      <span>·</span>
+                      <span class="flex items-center">
+                        <i data-lucide="clock" class="w-3 h-3 mr-1"></i>
+                        ${escapeHtml(item.publishedAt)}
+                      </span>
+                    </div>
                   </div>
 
-                  <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
-                    <span class="font-semibold text-slate-300">출처: ${escapeHtml(item.source)}</span>
-                    <span>${escapeHtml(item.publishedAt)}</span>
+                  <div class="flex items-center space-x-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onclick="event.stopPropagation(); toggleBookmark('${item.id}')"
+                      class="p-2 rounded-xl border transition ${
+                        isBookmarked
+                          ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                      }"
+                      title="기사 저장"
+                    >
+                      <i data-lucide="bookmark" class="w-4 h-4"></i>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick="event.stopPropagation(); openDraftModal('${item.id}')"
+                      class="flex items-center space-x-1 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow transition"
+                      title="30초 단신 기사작성"
+                    >
+                      <i data-lucide="file-edit" class="w-3.5 h-3.5"></i>
+                      <span>기사작성</span>
+                    </button>
                   </div>
-                </article>
-              `;
-            })
-            .join('');
-        }
+                </div>
+              </article>
+            `;
+          })
+          .join('');
       }
+
+      // 5. 하단 공공기관별 공식 재난·안전 현황 렌더링
+      const catBtnsContainer = document.getElementById('disaster-type-filter-buttons');
+      const allBtnActive = state.selectedDisasterCategory === 'ALL';
+      let catFilterHtml = `
+        <button
+          type="button"
+          onclick="setDisasterCategoryFilter('ALL')"
+          class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+            allBtnActive
+              ? 'bg-sky-500 text-slate-950 border-sky-400'
+              : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+          }"
+        >
+          전체 기관
+        </button>
+      `;
+      PUBLIC_INSTITUTION_GROUPS.forEach((grp) => {
+        const isActive = state.selectedDisasterCategory === grp.key;
+        catFilterHtml += `
+          <button
+            type="button"
+            onclick="setDisasterCategoryFilter('${grp.key}')"
+            class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+              isActive
+                ? 'bg-sky-500 text-slate-950 border-sky-400'
+                : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+            }"
+          >
+            ${escapeHtml(grp.agencyName)}
+          </button>
+        `;
+      });
+      catBtnsContainer.innerHTML = catFilterHtml;
+
+      const categoryGrid = document.getElementById('disaster-category-grid');
+      const visibleGroups = PUBLIC_INSTITUTION_GROUPS.filter(
+        (g) => state.selectedDisasterCategory === 'ALL' || state.selectedDisasterCategory === g.key
+      );
+
+      categoryGrid.className =
+        visibleGroups.length === 1 ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-3 gap-4';
+
+      categoryGrid.innerHTML = visibleGroups
+        .map((group) => {
+          const matchedLive = validDisasters.filter(
+            (item) => getInstitutionKeyForArticle(item) === group.key
+          );
+          const displayItems = matchedLive.length > 0 ? matchedLive : group.defaultItems;
+          const totalCount = displayItems.length;
+          return `
+            <div class="bg-slate-900/90 border ${group.borderClass} rounded-2xl p-4 flex flex-col justify-between space-y-3">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+                  <span class="text-sm font-extrabold ${group.headerTextClass} truncate">
+                    ${escapeHtml(group.agencyName)}
+                  </span>
+                  <div class="flex items-center space-x-1.5 shrink-0">
+                    <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md ${group.badgeClass}">
+                      ${escapeHtml(group.badgeText)}
+                    </span>
+                    <button
+                      type="button"
+                      onclick="openAgencyListModal('${group.key}')"
+                      class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+                    >
+                      <span>더보기</span>
+                      <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                  ${escapeHtml(group.officialSummary)}
+                </div>
+
+                <ul class="space-y-2">
+                  ${displayItems
+                    .slice(0, 2)
+                    .map((item) => {
+                      const clickable = Boolean(findArticleById(item.id));
+                      return `
+                        <li
+                          ${clickable ? `onclick="openArticleModal('${item.id}')"` : ''}
+                          class="p-2.5 rounded-xl bg-slate-950/70 ${clickable ? 'hover:bg-slate-800/80 cursor-pointer' : ''} border border-slate-800/90 transition"
+                        >
+                          <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                            <span class="font-semibold text-slate-300 truncate">${escapeHtml(item.district)}</span>
+                            <span class="shrink-0">${escapeHtml(item.publishedAt)}</span>
+                          </div>
+                          <p class="text-xs font-bold text-slate-100 leading-snug line-clamp-2">
+                            ${escapeHtml(item.title)}
+                          </p>
+                        </li>
+                      `;
+                    })
+                    .join('')}
+                </ul>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                <span class="text-[11px] text-slate-500">공식 발표 (${totalCount}건)</span>
+                <div class="flex items-center space-x-3">
+                  <button
+                    type="button"
+                    onclick="openAgencyListModal('${group.key}')"
+                    class="inline-flex items-center space-x-0.5 text-xs font-bold text-slate-300 hover:text-white transition"
+                  >
+                    <span>기사 목록</span>
+                    <i data-lucide="list" class="w-3 h-3"></i>
+                  </button>
+                  <a
+                    href="${escapeHtml(group.portalUrl)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center space-x-1 text-xs font-bold ${group.headerTextClass} hover:underline"
+                  >
+                    <span>${escapeHtml(group.portalName)}</span>
+                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                  </a>
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
 
       lucide.createIcons();
     }
 
-    // 실시간 재해·재난 특보 및 언론사 보도자료 전체 리스트 모달 열기
+    function getCombinedDisasterAndPressArticles() {
+      const validDisasters = DISASTER_ARTICLES.filter(isStrictWeatherOrDisasterArticle);
+      const validPress = PRESS_RELEASE_ARTICLES.filter(isStrictWeatherOrDisasterArticle);
+
+      const merged = [];
+      const seen = new Set();
+
+      [...validDisasters, ...validPress].forEach((item) => {
+        const normTitle = normalizeText(item.title).replace(/^\[[^\]]+\]\s*/, '');
+        if (!seen.has(normTitle)) {
+          seen.add(normTitle);
+          merged.push(item);
+        }
+      });
+
+      return merged.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    }
+
     function openAllDisasterArticlesModal(filterType = 'ALL') {
+      const allItems = getCombinedDisasterAndPressArticles();
+      const filteredBySearch = filterArticles(allItems);
+
+      const isPressItem = (item) =>
+        /^\[보도/.test(item.title || '') ||
+        /(언론보도|보도자료)/.test(item.category || '') ||
+        /(일보|신문|KNN|KBS|MBC|연합뉴스|뉴스1|뉴시스|YTN|SBS)/.test(item.source || '');
+
+      const displayList = filteredBySearch.filter((item) => {
+        if (filterType === 'OFFICIAL') return !isPressItem(item);
+        if (filterType === 'PRESS') return isPressItem(item);
+        return true;
+      });
+
+      const officialCount = filteredBySearch.filter((i) => !isPressItem(i)).length;
+      const pressCount = filteredBySearch.filter((i) => isPressItem(i)).length;
+
       const modal = document.getElementById('disaster-all-modal');
       const box = document.getElementById('disaster-all-modal-box');
       if (!modal || !box) return;
 
-      const allCombined = getCombinedDisasterAndPressArticles();
-      const targetList =
-        filterType === 'PRESS'
-          ? PRESS_RELEASE_ARTICLES.filter(isStrictWeatherOrDisasterArticle)
-          : allCombined;
-      const filteredList = filterArticles(targetList);
-
-      const modalTitle =
-        filterType === 'PRESS'
-          ? `언론매체 재난 · 안전 보도자료 전체 (${filteredList.length}건)`
-          : `실시간 재해 · 재난 특보 및 보도 전체 (${filteredList.length}건)`;
-
       box.innerHTML = `
-        <div class="p-4 sm:p-5 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
-          <div class="flex items-center space-x-2.5 min-w-0">
-            <span class="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-rose-600 text-white shrink-0">
-              ${filterType === 'PRESS' ? 'MEDIA · PRESS' : 'ALL BRIEFING'}
-            </span>
-            <div class="min-w-0">
-              <h3 class="text-base sm:text-lg font-extrabold text-white truncate">
-                ${escapeHtml(modalTitle)}
-              </h3>
-              <p class="text-xs text-slate-400 truncate">
-                기상청 · 부산 안전 ON 공식 특보 및 부산 지역 언론보도 통합 목록
-              </p>
+        <div class="p-4 sm:p-5 bg-slate-950 border-b border-slate-800 space-y-3 shrink-0">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center space-x-2.5 min-w-0">
+              <div class="p-2 rounded-xl bg-rose-600/20 text-rose-400 border border-rose-500/40 shrink-0">
+                <i data-lucide="newspaper" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base sm:text-lg font-extrabold text-white truncate">
+                  실시간 재해 · 재난 특보 및 언론사 보도 전체 (${filteredBySearch.length}건)
+                </h3>
+                <p class="text-xs text-slate-400 truncate">
+                  기상청 · 지자체 공식 특보와 부산 지역 주요 언론사 재난·안전 보도를 통합 제공합니다.
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onclick="closeAllDisasterArticlesModal()"
+              class="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white shrink-0"
+            >
+              <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
           </div>
 
-          <button
-            type="button"
-            onclick="closeAllDisasterArticlesModal()"
-            class="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white shrink-0 ml-2"
-          >
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">
+            <button
+              type="button"
+              onclick="openAllDisasterArticlesModal('ALL')"
+              class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                filterType === 'ALL'
+                  ? 'bg-rose-600 text-white border-rose-400'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+              }"
+            >
+              전체 통합 (${filteredBySearch.length})
+            </button>
+            <button
+              type="button"
+              onclick="openAllDisasterArticlesModal('OFFICIAL')"
+              class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                filterType === 'OFFICIAL'
+                  ? 'bg-sky-600 text-white border-sky-400'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+              }"
+            >
+              기관 특보 · 통제 (${officialCount})
+            </button>
+            <button
+              type="button"
+              onclick="openAllDisasterArticlesModal('PRESS')"
+              class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                filterType === 'PRESS'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400'
+                  : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+              }"
+            >
+              언론사 보도 · 보도자료 (${pressCount})
+            </button>
+          </div>
         </div>
 
         <div class="p-4 sm:p-5 overflow-y-auto space-y-3 flex-1">
           ${
-            filteredList.length === 0
-              ? `<div class="p-8 text-center text-sm text-slate-400">표시할 특보 및 보도자료가 없습니다.</div>`
-              : filteredList
+            displayList.length === 0
+              ? `<div class="p-10 text-center text-sm text-slate-400 bg-slate-950/60 rounded-2xl border border-slate-800">
+                  해당 조건에 맞는 재난 특보 및 언론사 기사가 없습니다.
+                </div>`
+              : displayList
                   .map((item) => {
-                    const style = getSeverityStyle(item.severity);
+                    const style = getSeverityStyle(item.severity || '안내');
+                    const pressFlag = isPressItem(item);
+                    const isBookmarked = state.bookmarkedIds.includes(item.id);
                     return `
                       <article
                         onclick="closeAllDisasterArticlesModal(); openArticleModal('${item.id}')"
-                        class="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 hover:border-rose-500/60 cursor-pointer transition space-y-2"
+                        class="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 hover:border-rose-500/60 cursor-pointer transition space-y-2.5"
                       >
                         <div class="flex flex-wrap items-center justify-between gap-2">
-                          <div class="flex items-center space-x-2">
+                          <div class="flex flex-wrap items-center gap-1.5">
                             <span class="px-2 py-0.5 rounded-md text-[11px] font-black border ${style.badge}">
                               ${escapeHtml(item.severity || '안내')}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                              pressFlag
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                            }">
+                              ${pressFlag ? '언론·보도' : '공식특보'}
                             </span>
                             <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
                               ${escapeHtml(item.category)}
@@ -2548,9 +2392,24 @@
                           ${escapeHtml(getDisplaySummary(item))}
                         </p>
 
-                        <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs text-slate-400">
-                          <span>출처: ${escapeHtml(item.source)}</span>
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs text-slate-400">
+                          <span class="px-2 py-0.5 rounded bg-slate-800/90 text-slate-200 font-semibold border border-slate-700">
+                            출처: ${escapeHtml(item.source)}
+                          </span>
+
                           <div class="flex items-center space-x-2">
+                            <button
+                              type="button"
+                              onclick="event.stopPropagation(); toggleBookmark('${item.id}'); openAllDisasterArticlesModal('${filterType}')"
+                              class="p-1.5 rounded-lg border transition ${
+                                isBookmarked
+                                  ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                              }"
+                              title="기사 저장"
+                            >
+                              <i data-lucide="bookmark" class="w-3.5 h-3.5"></i>
+                            </button>
                             <button
                               type="button"
                               onclick="event.stopPropagation(); closeAllDisasterArticlesModal(); openDraftModal('${item.id}')"
@@ -2570,11 +2429,14 @@
           }
         </div>
 
-        <div class="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-end shrink-0">
+        <div class="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between shrink-0">
+          <span class="text-xs text-slate-400">
+            총 <strong class="text-white">${displayList.length}건</strong>의 재난 특보 및 언론 보도 표시 중
+          </span>
           <button
             type="button"
             onclick="closeAllDisasterArticlesModal()"
-            class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+            class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition"
           >
             닫기
           </button>
@@ -2590,7 +2452,6 @@
       if (modal) modal.classList.add('hidden');
     }
 
-    // 공공기관별 전체 기사 리스트 새창(모달) 열기
     function openAgencyListModal(groupKey) {
       const group = PUBLIC_INSTITUTION_GROUPS.find((g) => g.key === groupKey);
       if (!group) return;
@@ -2851,8 +2712,6 @@
           }
         }
         INCIDENT_ARTICLES = mergedIncidents;
-        state.isDisasterExpanded = false;
-        state.isPressExpanded = false;
 
         if (liveData.bannerHeadline) {
           state.serverBannerHeadline = liveData.bannerHeadline;
@@ -2894,8 +2753,6 @@
         state.searchQuery = '';
         state.showBookmarksOnly = false;
         state.selectedDisasterCategory = 'ALL';
-        state.isDisasterExpanded = false;
-        state.isPressExpanded = false;
         document.getElementById('search-input').value = '';
         document.getElementById('btn-clear-search').classList.add('hidden');
         districtSelect.value = '전체 구·군';
@@ -2932,8 +2789,6 @@
 
       document.getElementById('btn-toggle-bookmarks').addEventListener('click', () => {
         state.showBookmarksOnly = !state.showBookmarksOnly;
-        state.isDisasterExpanded = false;
-        state.isPressExpanded = false;
         renderAll();
       });
 
@@ -2941,8 +2796,6 @@
       const clearSearchBtn = document.getElementById('btn-clear-search');
       searchInput.addEventListener('input', (e) => {
         state.searchQuery = e.target.value;
-        state.isDisasterExpanded = false;
-        state.isPressExpanded = false;
         if (state.searchQuery) {
           clearSearchBtn.classList.remove('hidden');
         } else {
@@ -2952,8 +2805,6 @@
       });
       clearSearchBtn.addEventListener('click', () => {
         state.searchQuery = '';
-        state.isDisasterExpanded = false;
-        state.isPressExpanded = false;
         searchInput.value = '';
         clearSearchBtn.classList.add('hidden');
         renderAll();
@@ -2961,8 +2812,6 @@
 
       districtSelect.addEventListener('change', (e) => {
         state.selectedDistrict = e.target.value;
-        state.isDisasterExpanded = false;
-        state.isPressExpanded = false;
         renderAll();
       });
 
@@ -2984,6 +2833,9 @@
           if (satModal && !satModal.classList.contains('hidden')) {
             closeSatelliteFullscreen();
           }
+          if (cctvState.isExpanded) {
+            toggleCctvFullscreen();
+          }
           closeAgencyListModal();
           closeAllDisasterArticlesModal();
         }
@@ -2993,274 +2845,382 @@
       loadLiveNewsFromVercel();
     });
 
-    // --- CCTV 탭: 부산 권역 Roadplus 멀티뷰어 지도 및 실시간 영상 렌더링 ---
-    function initBusanCctvMap() {
-      const mapEl = document.getElementById('busan-cctv-map');
-      if (!mapEl || typeof L === 'undefined') return;
+    // =========================================================================
+    // --- 실시간 부산 도로 CCTV 모듈 (국가교통정보센터 ITS API 연동) ---
+    // =========================================================================
+    const CCTV_API_KEY = "5e630421b0d846bfa37c316842cc7330";
+    const cctvState = {
+      initialized: false,
+      map: null,
+      currentTileLayer: null,
+      vectorFallbackGroup: null,
+      markersLayer: null,
+      allData: [],
+      hlsInstance: null,
+      isExpanded: false
+    };
 
-      if (!busanCctvMap) {
-        busanCctvMap = L.map('busan-cctv-map', {
-          center: [35.185, 129.055],
-          zoom: 11,
-          zoomControl: true
-        });
+    const CCTV_TILE_LAYERS = {
+      esri_street: {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        attr: '&copy; Esri'
+      },
+      esri_dark: {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        attr: '&copy; Esri'
+      },
+      esri_sat: {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr: '&copy; Esri'
+      }
+    };
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; Roadplus GIS · OpenStreetMap',
-          subdomains: 'abcd',
-          maxZoom: 18
-        }).addTo(busanCctvMap);
+    const CCTV_REGION_BOUNDS = {
+      busan_all: { minX: 128.75, maxX: 129.32, minY: 34.98, maxY: 35.40, center: [35.1796, 129.0756], zoom: 11 },
+      busan_west: { minX: 128.75, maxX: 129.03, minY: 34.98, maxY: 35.28, center: [35.1580, 128.9350], zoom: 12 },
+      busan_central: { minX: 129.00, maxX: 129.15, minY: 35.08, maxY: 35.33, center: [35.2150, 129.0850], zoom: 12 },
+      busan_east: { minX: 129.11, maxX: 129.32, minY: 35.14, maxY: 35.40, center: [35.2450, 129.2100], zoom: 12 }
+    };
+
+    const CCTV_FALLBACK_DATA = [
+      { cctvname: "[경부선] 구서IC", coordx: 129.0928, coordy: 35.2464, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+      { cctvname: "[경부선] 부산요금소(노포)", coordx: 129.0984, coordy: 35.2842, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+      { cctvname: "[남해선] 대저분기점", coordx: 128.9722, coordy: 35.2136, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+      { cctvname: "[남해선] 북부산요금소", coordx: 128.9514, coordy: 35.2189, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+      { cctvname: "[남해제2지선] 서부산요금소", coordx: 128.9325, coordy: 35.1561, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+      { cctvname: "[부산울산선] 해운대송정IC", coordx: 129.1931, coordy: 35.1883, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+      { cctvname: "[부산울산선] 기장일광IC", coordx: 129.2225, coordy: 35.2631, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+      { cctvname: "[부산외곽선] 금정산터널(동측)", coordx: 129.0681, coordy: 35.2894, cctvurl: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" }
+    ];
+
+    function createBusanVectorRoadLayer() {
+      const group = L.layerGroup();
+      const roads = [
+        { name: "경부고속도로", color: "#3b82f6", coords: [[35.2842, 129.0984], [35.2464, 129.0928], [35.2150, 129.0850], [35.1796, 129.0756]] },
+        { name: "남해고속도로", color: "#10b981", coords: [[35.2250, 128.8800], [35.2189, 128.9514], [35.2136, 128.9722], [35.2100, 129.0100]] },
+        { name: "남해제2지선", color: "#10b981", coords: [[35.1850, 128.8500], [35.1561, 128.9325], [35.1520, 128.9850]] },
+        { name: "동해고속도로(부산울산)", color: "#f59e0b", coords: [[35.1750, 129.1750], [35.1883, 129.1931], [35.2631, 129.2225], [35.3300, 129.2600]] },
+        { name: "부산외곽순환고속도로", color: "#8b5cf6", coords: [[35.2550, 128.8600], [35.2750, 128.9600], [35.2894, 129.0681], [35.2700, 129.1800], [35.2631, 129.2225]] },
+        { name: "광안대로/해안순환도로", color: "#06b6d4", coords: [[35.1000, 129.0350], [35.1350, 129.0850], [35.1530, 129.1180], [35.1650, 129.1550]] }
+      ];
+      roads.forEach((road) => {
+        L.polyline(road.coords, { color: road.color, weight: 4, opacity: 0.8 }).bindTooltip(road.name).addTo(group);
+      });
+      const landmarks = [
+        { name: "강서/가덕권", pos: [35.1200, 128.8900] },
+        { name: "사상/북구권", pos: [35.1900, 128.9850] },
+        { name: "동래/금정권", pos: [35.2350, 129.0850] },
+        { name: "부산진/서면", pos: [35.1580, 129.0590] },
+        { name: "해운대/수영", pos: [35.1630, 129.1580] },
+        { name: "기장권", pos: [35.2500, 129.2150] }
+      ];
+      landmarks.forEach((lm) => {
+        L.marker(lm.pos, {
+          icon: L.divIcon({
+            className: 'bg-transparent',
+            html: `<span class="text-[11px] font-bold text-slate-200 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-600 whitespace-nowrap">${lm.name}</span>`,
+            iconSize: [80, 20]
+          })
+        }).addTo(group);
+      });
+      return group;
+    }
+
+    function setCctvMapTile(styleKey) {
+      if (!cctvState.map) return;
+      if (cctvState.currentTileLayer) {
+        cctvState.map.removeLayer(cctvState.currentTileLayer);
+        cctvState.currentTileLayer = null;
+      }
+      if (cctvState.vectorFallbackGroup) {
+        cctvState.map.removeLayer(cctvState.vectorFallbackGroup);
+        cctvState.vectorFallbackGroup = null;
       }
 
-      setTimeout(() => {
-        if (busanCctvMap) busanCctvMap.invalidateSize();
-      }, 80);
+      if (styleKey === 'vector_offline') {
+        cctvState.vectorFallbackGroup = createBusanVectorRoadLayer().addTo(cctvState.map);
+        return;
+      }
 
-      // 기존 마커 정리 후 다시 그리기
-      busanCctvMarkers.forEach((m) => busanCctvMap.removeLayer(m));
-      busanCctvMarkers = [];
+      const layerConfig = CCTV_TILE_LAYERS[styleKey] || CCTV_TILE_LAYERS.esri_street;
+      cctvState.currentTileLayer = L.tileLayer(layerConfig.url, {
+        attribution: layerConfig.attr,
+        maxZoom: 19,
+        referrerPolicy: 'no-referrer'
+      });
 
-      const filteredNodes = getFilteredCctvNodes();
-      filteredNodes.forEach((node) => {
-        const isSelected = state.selectedCctvIds.includes(node.id);
-        const pinColor =
-          node.category === 'expressway'
-            ? 'bg-rose-600'
-            : node.category === 'city'
-            ? 'bg-indigo-600'
-            : 'bg-sky-600';
-        const ringClass = isSelected
-          ? 'ring-4 ring-emerald-400 scale-110'
-          : 'border-2 border-white';
+      let errorCount = 0;
+      cctvState.currentTileLayer.on('tileerror', () => {
+        errorCount++;
+        if (errorCount === 4) {
+          document.getElementById('cctv-map-style').value = 'vector_offline';
+          setCctvMapTile('vector_offline');
+        }
+      });
 
-        const iconHtml = `
-          <div class="w-8 h-8 rounded-full ${pinColor} ${ringClass} text-white flex items-center justify-center shadow-lg transition transform hover:scale-125 cursor-pointer" title="${escapeHtml(node.name)}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/>
-              <rect width="14" height="12" x="2" y="6" rx="2"/>
-            </svg>
+      cctvState.currentTileLayer.addTo(cctvState.map);
+    }
+
+    function initCctvModuleOnce() {
+      if (!cctvState.initialized) {
+        cctvState.initialized = true;
+        const initialRegion = CCTV_REGION_BOUNDS.busan_all;
+        cctvState.map = L.map('cctv-map', { zoomControl: false }).setView(initialRegion.center, initialRegion.zoom);
+        setCctvMapTile('esri_street');
+        L.control.zoom({ position: 'topright' }).addTo(cctvState.map);
+        cctvState.markersLayer = L.layerGroup().addTo(cctvState.map);
+
+        document.getElementById('btn-fetch-cctv').addEventListener('click', fetchBusanCctvData);
+        document.getElementById('cctv-region-select').addEventListener('change', fetchBusanCctvData);
+        document.getElementById('cctv-road-type').addEventListener('change', fetchBusanCctvData);
+        document.getElementById('cctv-map-style').addEventListener('change', (e) => setCctvMapTile(e.target.value));
+
+        document.getElementById('cctv-search-input').addEventListener('input', (e) => {
+          const keyword = e.target.value.trim().toLowerCase();
+          const filtered = cctvState.allData.filter((item) =>
+            item.cctvname && item.cctvname.toLowerCase().includes(keyword)
+          );
+          renderBusanCctvList(filtered);
+          renderBusanCctvMarkers(filtered);
+        });
+
+        document.getElementById('btn-cctv-close').addEventListener('click', closeCctvPlayer);
+        document.getElementById('btn-cctv-fullscreen').addEventListener('click', toggleCctvFullscreen);
+
+        window.addEventListener('resize', () => {
+          if (cctvState.map && state.activeTab === 'cctv') {
+            cctvState.map.invalidateSize();
+          }
+        });
+
+        fetchBusanCctvData();
+      }
+
+      // 탭 전환으로 hidden 해제된 직후 지도 크기 재계산
+      setTimeout(() => { if (cctvState.map) cctvState.map.invalidateSize(); }, 100);
+      setTimeout(() => { if (cctvState.map) cctvState.map.invalidateSize(); }, 400);
+    }
+
+    function showCctvBanner(message) {
+      const banner = document.getElementById('cctv-status-banner');
+      const text = document.getElementById('cctv-status-text');
+      if (!banner || !text) return;
+      text.textContent = message;
+      banner.classList.remove('hidden');
+    }
+
+    async function fetchBusanCctvData() {
+      const roadType = document.getElementById('cctv-road-type').value;
+      const regionKey = document.getElementById('cctv-region-select').value;
+      const bounds = CCTV_REGION_BOUNDS[regionKey];
+
+      if (cctvState.map) {
+        cctvState.map.flyTo(bounds.center, bounds.zoom, { duration: 0.8 });
+      }
+
+      const listEl = document.getElementById('cctv-list');
+      listEl.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
+          <div class="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-xs">부산권 CCTV 데이터를 조회 중입니다...</span>
+        </div>
+      `;
+
+      const apiUrl = `https://openapi.its.go.kr:9443/cctvInfo?apiKey=${CCTV_API_KEY}&type=${roadType}&cctvType=1&minX=${bounds.minX}&maxX=${bounds.maxX}&minY=${bounds.minY}&maxY=${bounds.maxY}&getType=json`;
+
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`HTTP 오류: ${response.status}`);
+
+        const json = await response.json();
+        let cctvArray = [];
+        if (json.response && json.response.data) {
+          cctvArray = Array.isArray(json.response.data) ? json.response.data : [json.response.data];
+        } else if (json.data) {
+          cctvArray = json.data;
+        }
+
+        if (cctvArray.length === 0) {
+          showCctvBanner("선택한 조건에 조회된 CCTV가 없습니다.");
+          cctvState.allData = [];
+        } else {
+          document.getElementById('cctv-status-banner').classList.add('hidden');
+          cctvState.allData = cctvArray;
+        }
+
+        const badge = document.getElementById('cctv-api-badge');
+        badge.textContent = "실시간 API 연동";
+        badge.className = "px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold";
+
+        document.getElementById('cctv-search-input').value = '';
+        renderBusanCctvList(cctvState.allData);
+        renderBusanCctvMarkers(cctvState.allData);
+      } catch (error) {
+        showCctvBanner("브라우저 보안(CORS) 또는 네트워크 제한으로 테스트용 부산 샘플 모드로 전환합니다.");
+        const badge = document.getElementById('cctv-api-badge');
+        badge.textContent = "테스트 샘플 모드";
+        badge.className = "px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold";
+
+        cctvState.allData = CCTV_FALLBACK_DATA;
+        renderBusanCctvList(cctvState.allData);
+        renderBusanCctvMarkers(cctvState.allData);
+      }
+    }
+
+    function renderBusanCctvList(dataList) {
+      const listEl = document.getElementById('cctv-list');
+      const countEl = document.getElementById('cctv-count');
+      countEl.textContent = dataList.length;
+
+      if (dataList.length === 0) {
+        listEl.innerHTML = `<div class="text-center text-slate-500 py-10 text-xs">표시할 CCTV가 없습니다.</div>`;
+        return;
+      }
+
+      const displayList = dataList.slice(0, 300);
+      listEl.innerHTML = '';
+
+      displayList.forEach((item) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = "w-full text-left p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 transition flex items-center justify-between group";
+        btn.innerHTML = `
+          <div class="flex items-center gap-2.5 truncate pr-2">
+            <div class="w-7 h-7 rounded-lg bg-slate-900 group-hover:bg-emerald-600/20 text-slate-400 group-hover:text-emerald-400 flex items-center justify-center shrink-0 transition">
+              <i data-lucide="video" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="truncate">
+              <div class="text-xs sm:text-sm font-bold text-slate-200 group-hover:text-white truncate">${escapeHtml(item.cctvname || '이름 없음')}</div>
+              <div class="text-[10px] text-slate-500">위도 ${Number(item.coordy).toFixed(4)}, 경도 ${Number(item.coordx).toFixed(4)}</div>
+            </div>
           </div>
+          <i data-lucide="play" class="w-3.5 h-3.5 text-slate-600 group-hover:text-emerald-400 shrink-0 transition"></i>
         `;
+        btn.onclick = () => {
+          playBusanCctv(item);
+          if (cctvState.map) {
+            cctvState.map.flyTo([item.coordy, item.coordx], 13, { duration: 0.7 });
+          }
+        };
+        listEl.appendChild(btn);
+      });
 
-        const customIcon = L.divIcon({
-          className: 'busan-cctv-pin',
-          html: iconHtml,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16]
-        });
+      lucide.createIcons();
+    }
 
-        const marker = L.marker([node.lat, node.lng], { icon: customIcon }).addTo(busanCctvMap);
-        marker.bindTooltip(`${node.name} (${node.status})`, { direction: 'top', offset: [0, -12] });
-        marker.on('click', () => {
-          toggleCctvInMultiViewer(node.id, true);
-        });
-        busanCctvMarkers.push(marker);
+    function renderBusanCctvMarkers(dataList) {
+      if (!cctvState.markersLayer) return;
+      cctvState.markersLayer.clearLayers();
+
+      const customIcon = L.divIcon({
+        className: 'custom-cctv-div-icon',
+        html: `<div class="cctv-marker w-6 h-6"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      dataList.slice(0, 500).forEach((item) => {
+        if (!item.coordy || !item.coordx) return;
+        const marker = L.marker([item.coordy, item.coordx], { icon: customIcon });
+        marker.bindTooltip(item.cctvname || 'CCTV', { direction: 'top', offset: [0, -10] });
+        marker.on('click', () => playBusanCctv(item));
+        cctvState.markersLayer.addLayer(marker);
       });
     }
 
-    function getFilteredCctvNodes() {
-      if (state.cctvCategoryFilter === 'ALL') return BUSAN_CCTV_NODES;
-      return BUSAN_CCTV_NODES.filter((n) => n.category === state.cctvCategoryFilter);
-    }
+    function playBusanCctv(cctvItem) {
+      const playerCard = document.getElementById('cctv-player-card');
+      const titleEl = document.getElementById('cctv-player-title');
+      const coordsEl = document.getElementById('cctv-player-coords');
+      const videoEl = document.getElementById('cctv-video');
+      const loaderEl = document.getElementById('cctv-video-loader');
+      const errorEl = document.getElementById('cctv-video-error');
+      const directLink = document.getElementById('cctv-direct-link');
 
-    function setCctvCategoryFilter(cat) {
-      state.cctvCategoryFilter = cat;
-      renderCctvTab();
-    }
+      playerCard.classList.remove('hidden');
+      titleEl.textContent = cctvItem.cctvname || '실시간 CCTV';
+      coordsEl.textContent = `좌표: ${Number(cctvItem.coordy).toFixed(4)}, ${Number(cctvItem.coordx).toFixed(4)}`;
+      loaderEl.classList.remove('hidden');
+      errorEl.classList.add('hidden');
 
-    function resetBusanCctvMapCenter() {
-      if (busanCctvMap) {
-        busanCctvMap.flyTo([35.185, 129.055], 11);
+      const streamUrl = cctvItem.cctvurl;
+      directLink.href = streamUrl;
+
+      if (cctvState.hlsInstance) {
+        cctvState.hlsInstance.destroy();
+        cctvState.hlsInstance = null;
       }
-    }
 
-    function toggleRoadplusDirectView() {
-      state.showRoadplusDirect = !state.showRoadplusDirect;
-      const box = document.getElementById('roadplus-direct-embed-box');
-      const frame = document.getElementById('frame-roadplus-official');
-      const label = document.getElementById('roadplus-embed-toggle-label');
-      if (!box || !frame || !label) return;
+      if (streamUrl && streamUrl.includes('.m3u8')) {
+        if (Hls.isSupported()) {
+          cctvState.hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
+          cctvState.hlsInstance.loadSource(streamUrl);
+          cctvState.hlsInstance.attachMedia(videoEl);
 
-      if (state.showRoadplusDirect) {
-        frame.src = 'https://www.roadplus.co.kr/main#';
-        box.classList.remove('hidden');
-        label.textContent = 'Roadplus 원본 페이지 닫기';
-      } else {
-        box.classList.add('hidden');
-        frame.src = 'about:blank';
-        label.textContent = 'Roadplus 원본 페이지 보기';
-      }
-    }
+          cctvState.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+            loaderEl.classList.add('hidden');
+            videoEl.play().catch(() => {});
+          });
 
-    function toggleCctvInMultiViewer(id, focusMap = false) {
-      const node = BUSAN_CCTV_NODES.find((n) => n.id === id);
-      if (!node) return;
-
-      const exists = state.selectedCctvIds.includes(id);
-      if (exists) {
-        if (focusMap) {
-          showToast(`이미 멀티뷰어에서 재생 중입니다: ${node.name}`);
-        } else {
-          state.selectedCctvIds = state.selectedCctvIds.filter((item) => item !== id);
+          cctvState.hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              loaderEl.classList.add('hidden');
+              errorEl.classList.remove('hidden');
+            }
+          });
+        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+          videoEl.src = streamUrl;
+          videoEl.addEventListener('loadedmetadata', () => {
+            loaderEl.classList.add('hidden');
+            videoEl.play();
+          });
         }
       } else {
-        if (state.selectedCctvIds.length >= 4) {
-          state.selectedCctvIds = [...state.selectedCctvIds.slice(1), id];
-          showToast(`멀티뷰어(최대 4채널)에 '${node.name}' 영상이 추가되었습니다.`);
-        } else {
-          state.selectedCctvIds.push(id);
-          showToast(`실시간 영상 연결: ${node.name}`);
-        }
+        videoEl.src = streamUrl;
+        videoEl.onloadeddata = () => loaderEl.classList.add('hidden');
+        videoEl.onerror = () => {
+          loaderEl.classList.add('hidden');
+          errorEl.classList.remove('hidden');
+        };
       }
-
-      if (focusMap && busanCctvMap) {
-        busanCctvMap.flyTo([node.lat, node.lng], 13);
-      }
-
-      renderCctvTab();
+      lucide.createIcons();
     }
 
-    function selectDefaultMultiCctvs() {
-      state.selectedCctvIds = ['cctv-bs-1', 'cctv-bs-2', 'cctv-bs-3', 'cctv-bs-6'];
-      showToast('부산 주요 거점 4채널 멀티뷰어를 활성화했습니다.');
-      renderCctvTab();
-    }
+    function toggleCctvFullscreen() {
+      const card = document.getElementById('cctv-player-card');
+      const btn = document.getElementById('btn-cctv-fullscreen');
+      cctvState.isExpanded = !cctvState.isExpanded;
 
-    function clearMultiCctvs() {
-      state.selectedCctvIds = [];
-      renderCctvTab();
-    }
-
-    function renderCctvTab() {
-      const pillsEl = document.getElementById('cctv-category-pills');
-      const listEl = document.getElementById('cctv-node-list');
-      const countEl = document.getElementById('cctv-node-count');
-      const selectedCountEl = document.getElementById('cctv-selected-count');
-      const gridEl = document.getElementById('cctv-multiviewer-grid');
-      if (!pillsEl || !listEl || !gridEl) return;
-
-      const cats = [
-        { key: 'ALL', label: '전체' },
-        { key: 'expressway', label: '고속도로' },
-        { key: 'city', label: '도시고속·교량' },
-        { key: 'river', label: '하천·연안' }
-      ];
-
-      pillsEl.innerHTML = cats
-        .map((c) => {
-          const active = state.cctvCategoryFilter === c.key;
-          return `
-            <button
-              type="button"
-              onclick="setCctvCategoryFilter('${c.key}')"
-              class="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                active
-                  ? 'bg-emerald-600 text-white border-emerald-400'
-                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
-              }"
-            >
-              ${c.label}
-            </button>
-          `;
-        })
-        .join('');
-
-      const filteredNodes = getFilteredCctvNodes();
-      if (countEl) countEl.textContent = filteredNodes.length;
-
-      listEl.innerHTML = filteredNodes
-        .map((node) => {
-          const isSelected = state.selectedCctvIds.includes(node.id);
-          return `
-            <div
-              onclick="toggleCctvInMultiViewer('${node.id}', true)"
-              class="p-2.5 rounded-xl border transition cursor-pointer ${
-                isSelected
-                  ? 'bg-emerald-950/50 border-emerald-500/70'
-                  : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
-              }"
-            >
-              <div class="flex items-center justify-between text-[11px] mb-1">
-                <span class="font-bold text-emerald-300 truncate">${escapeHtml(node.route)}</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                  isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300'
-                }">
-                  ${isSelected ? '재생 중' : node.status}
-                </span>
-              </div>
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-xs font-extrabold text-white truncate">${escapeHtml(node.name)}</p>
-                <span class="text-[11px] text-slate-400 shrink-0">${escapeHtml(node.district)}</span>
-              </div>
-            </div>
-          `;
-        })
-        .join('');
-
-      // 멀티뷰어 비디오 그리드 렌더링
-      if (selectedCountEl) selectedCountEl.textContent = state.selectedCctvIds.length;
-      const selectedNodes = state.selectedCctvIds
-        .map((id) => BUSAN_CCTV_NODES.find((n) => n.id === id))
-        .filter(Boolean);
-
-      if (selectedNodes.length === 0) {
-        gridEl.className = 'block';
-        gridEl.innerHTML = `
-          <div class="p-8 rounded-2xl bg-slate-950/80 border border-slate-800 text-center space-y-2">
-            <p class="text-sm font-bold text-slate-200">선택된 CCTV 영상이 없습니다.</p>
-            <p class="text-xs text-slate-400">상단 부산지역 지도에서 CCTV 아이콘을 클릭하거나 &lsquo;주요 4채널 일괄 보기&rsquo;를 눌러주세요.</p>
-          </div>
-        `;
+      if (cctvState.isExpanded) {
+        card.classList.add('fullscreen-mode');
+        btn.innerHTML = `<i data-lucide="minimize-2" class="w-3.5 h-3.5"></i>`;
       } else {
-        gridEl.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
-        gridEl.innerHTML = selectedNodes
-          .map(
-            (node, idx) => `
-              <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
-                <div class="px-3.5 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2">
-                  <div class="flex items-center space-x-2 min-w-0">
-                    <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black shrink-0">
-                      CH ${idx + 1}
-                    </span>
-                    <span class="text-xs sm:text-sm font-extrabold text-white truncate">
-                      ${escapeHtml(node.name)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onclick="toggleCctvInMultiViewer('${node.id}', false)"
-                    class="p-1 rounded-lg bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white transition shrink-0"
-                    title="멀티뷰어에서 닫기"
-                  >
-                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                  </button>
-                </div>
+        card.classList.remove('fullscreen-mode');
+        btn.innerHTML = `<i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>`;
+      }
+      lucide.createIcons();
+    }
 
-                <div class="relative aspect-video bg-black overflow-hidden">
-                  <video
-                    src="${escapeHtml(node.videoUrl)}"
-                    autoplay
-                    loop
-                    muted
-                    playsinline
-                    class="w-full h-full object-cover"
-                  ></video>
-                  <div class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/75 backdrop-blur border border-white/10 text-[11px] font-mono text-white flex items-center space-x-1.5">
-                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                    <span class="font-bold">ROADPLUS LIVE</span>
-                  </div>
-                  <div class="absolute bottom-2.5 left-2.5 right-2.5 px-3 py-1.5 rounded-lg bg-black/75 backdrop-blur border border-white/10 flex items-center justify-between text-[11px] text-slate-200">
-                    <span>${escapeHtml(node.district)} · ${escapeHtml(node.source)}</span>
-                    <span class="font-bold text-emerald-300">${escapeHtml(node.speed)} (${escapeHtml(node.status)})</span>
-                  </div>
-                </div>
-              </div>
-            `
-          )
-          .join('');
+    function closeCctvPlayer() {
+      const playerCard = document.getElementById('cctv-player-card');
+      const videoEl = document.getElementById('cctv-video');
+      const btn = document.getElementById('btn-cctv-fullscreen');
+
+      if (cctvState.isExpanded) {
+        cctvState.isExpanded = false;
+        playerCard.classList.remove('fullscreen-mode');
+        if (btn) btn.innerHTML = `<i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>`;
       }
 
-      initBusanCctvMap();
+      playerCard.classList.add('hidden');
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.load();
+
+      if (cctvState.hlsInstance) {
+        cctvState.hlsInstance.destroy();
+        cctvState.hlsInstance = null;
+      }
       lucide.createIcons();
     }
   </script>
