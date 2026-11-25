@@ -1167,7 +1167,7 @@
 
     // --- 상단 특보 영역: 기상청 · 부산시 발표만 / 하단: 언론사별 보도 ---
     const MEDIA_OUTLET_REGEX = /(부산일보|국제신문|KBS|MBC|KNN|연합뉴스|뉴스1|뉴시스|YTN|SBS|JTBC|CBS|노컷뉴스|한겨레|조선일보|중앙일보|동아일보|경향신문|매일신문|뉴스핌|[가-힣A-Za-z0-9]+(?:일보|신문|방송|뉴스))/;
-    const OFFICIAL_ORG_REGEX = /(기상청|부산광역시|부산시|부산\s*안전\s*ON|재난안전대책본부)/;
+    const OFFICIAL_ORG_REGEX = /(기상청|방재기상|날씨누리|국가기상|부산\s*안전\s*ON|부산광역시|부산시|부산\s*시청|재난안전대책본부|시민안전실|산불방지대책본부|상수도사업본부|소방재난본부|소방서|소방청|해양경찰|해경|경찰청|경찰서|한국도로공사|도로공사|교통정보센터|항만공사|구청|군청|행정안전부|국민재난안전포털|산림청|국토교통부|해양수산부|환경부|수자원공사)/i;
 
     function splitSourceParts(item) {
       return String((item && item.source) || '')
@@ -1182,7 +1182,7 @@
       return found || '';
     }
 
-    // 기상청 또는 부산시(부산광역시·부산 안전 ON 등)가 출처인 공식 특보인지 판별
+    // 기상청·방재기상·날씨누리·부산 안전 ON·부산광역시청 등 공공기관이 출처인지 판별
     function isOfficialKmaOrBusan(item) {
       if (getMediaOutletName(item)) return false;
       return OFFICIAL_ORG_REGEX.test(String((item && item.source) || ''));
@@ -1885,9 +1885,8 @@
       }
 
       // 3. 재해·재난 카드 렌더링
-      // 상단 "실시간 재해·재난 특보"는 기상청·부산시 발표만 표출
-      const validDisasters = DISASTER_ARTICLES
-        .filter(isStrictWeatherOrDisasterArticle)
+      // 상단 "실시간 재해·재난 특보"는 기상청·방재기상·날씨누리·부산 안전 ON·부산광역시청 등 공공기관 발표만 표출
+      const validDisasters = getCombinedDisasterAndPressArticles()
         .filter(isOfficialKmaOrBusan);
 
       const advisoryInfo = extractOfficialWeatherAdvisory(
@@ -1919,7 +1918,7 @@
         disContainer.innerHTML = `
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center space-y-1.5">
             <p class="text-slate-200 font-bold text-sm">
-              ${isFiltered ? '선택한 검색 조건에 해당하는 날씨·재해·재난 특보가 없습니다.' : '현재 기상청·부산시가 발표한 재해·재난 특보가 없습니다.'}
+              ${isFiltered ? '선택한 검색 조건에 해당하는 날씨·재해·재난 특보가 없습니다.' : '현재 기상청·부산시 등 공공기관이 발표한 재해·재난 특보가 없습니다.'}
             </p>
             <p class="text-slate-400 text-xs">
               ${isFiltered ? '필터 조건을 초기화하거나 다른 지역을 선택해 보세요.' : '기상특보나 재난·안전 통제 소식이 접수되면 즉시 표출됩니다.'}
